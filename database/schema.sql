@@ -1,3 +1,6 @@
+CREATE DATABASE IF NOT EXISTS skill_exchange_db;
+USE skill_exchange_db;
+
 DROP TABLE IF EXISTS EvaluationAnswer;
 DROP TABLE IF EXISTS SkillEvaluation;
 DROP TABLE IF EXISTS QuestionOption;
@@ -60,7 +63,7 @@ CREATE TABLE Student (
 CREATE TABLE Admin (
     AdminID      INT         NOT NULL,
     UniversityID INT         NOT NULL,
-    AdminLevel   VARCHAR(50) NOT NULL DEFAULT 'standard',
+    AdminLevel   ENUM('standard','superadmin') NOT NULL DEFAULT 'standard',  -- standard = University Admin (one university); superadmin = Platform Admin (system-wide)
     CreatedAt    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (AdminID),
     CONSTRAINT fk_admin_user FOREIGN KEY (AdminID)
@@ -93,7 +96,6 @@ CREATE TABLE OfferedSkill (
     SkillID      INT             NOT NULL,
     IsPaid       TINYINT(1)      NOT NULL DEFAULT 0,
     PricePerHour DECIMAL(10,2)   DEFAULT NULL,
-    Description  TEXT,
     CreatedAt    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (OfferID),
     CONSTRAINT fk_offer_student FOREIGN KEY (StudentID)
@@ -106,8 +108,7 @@ CREATE TABLE RequestedSkill (
     RequestID     INT         NOT NULL AUTO_INCREMENT,
     StudentID     INT         NOT NULL,
     SkillID       INT         NOT NULL,
-    Description   TEXT,
-    PreferredTime VARCHAR(100),
+    PreferredTime ENUM('Morning','Evenings','Weekdays','Weekends','Flexible') DEFAULT NULL,
     PreferredMode ENUM('online','in-person','both') DEFAULT 'both',
     Status        ENUM('open','matched','closed') NOT NULL DEFAULT 'open',
     CreatedAt     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
