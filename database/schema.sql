@@ -1,6 +1,7 @@
+
+
 CREATE DATABASE IF NOT EXISTS skill_exchange_db;
 USE skill_exchange_db;
-
 DROP TABLE IF EXISTS EvaluationAnswer;
 DROP TABLE IF EXISTS SkillEvaluation;
 DROP TABLE IF EXISTS QuestionOption;
@@ -30,8 +31,8 @@ DROP VIEW IF EXISTS vw_SkillLeaderboard;
 CREATE TABLE University (
     UniversityID   INT          NOT NULL AUTO_INCREMENT,
     UniversityName VARCHAR(200) NOT NULL,
-    Address        VARCHAR(300),
-    ContactEmail   VARCHAR(255),
+    Address        VARCHAR(300) NOT NULL,
+    ContactEmail   VARCHAR(255) NOT NULL,
     CreatedAt      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (UniversityID),
     UNIQUE KEY uq_university_email (ContactEmail)
@@ -63,7 +64,7 @@ CREATE TABLE Student (
 CREATE TABLE Admin (
     AdminID      INT         NOT NULL,
     UniversityID INT         NOT NULL,
-    AdminLevel   ENUM('standard','superadmin') NOT NULL DEFAULT 'standard',  -- standard = University Admin (one university); superadmin = Platform Admin (system-wide)
+    AdminLevel   ENUM('standard','superadmin') NOT NULL DEFAULT 'standard',
     CreatedAt    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (AdminID),
     CONSTRAINT fk_admin_user FOREIGN KEY (AdminID)
@@ -73,7 +74,7 @@ CREATE TABLE Admin (
 );
 CREATE TABLE SkillCategory (
     CategoryID   INT          NOT NULL AUTO_INCREMENT,
-    CategoryName VARCHAR(150) NOT NULL,
+    CategoryName ENUM('Programming','Languages','Design','Music','Business','Academics','Creative','Life Skills') NOT NULL,
     Description  TEXT,
     CreatedAt    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (CategoryID),
@@ -82,7 +83,24 @@ CREATE TABLE SkillCategory (
 CREATE TABLE Skill (
     SkillID         INT          NOT NULL AUTO_INCREMENT,
     CategoryID      INT          NOT NULL,
-    SkillName       VARCHAR(150) NOT NULL,
+    SkillName       ENUM(
+                        -- Programming
+                        'Python','JavaScript','Java','C++','Web Development',
+                        -- Languages
+                        'English','Spanish','French','Arabic','Urdu',
+                        -- Design
+                        'Graphic Design','UI/UX','Figma','Adobe Photoshop',
+                        -- Music
+                        'Guitar','Piano','Music Production','Singing',
+                        -- Business
+                        'Digital Marketing','Excel','Presentation Skills',
+                        -- Academics
+                        'Mathematics','Calculus','Physics','Essay Writing',
+                        -- Creative
+                        'Creative Writing','Photography','Video Editing',
+                        -- Life Skills
+                        'Cooking','Public Speaking','Time Management'
+                    ) NOT NULL,
     Description     TEXT,
     DifficultyLevel ENUM('beginner','intermediate','advanced') DEFAULT 'beginner',
     CreatedAt       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -91,12 +109,12 @@ CREATE TABLE Skill (
         REFERENCES SkillCategory(CategoryID)
 );
 CREATE TABLE OfferedSkill (
-    OfferID      INT             NOT NULL AUTO_INCREMENT,
-    StudentID    INT             NOT NULL,
-    SkillID      INT             NOT NULL,
-    IsPaid       TINYINT(1)      NOT NULL DEFAULT 0,
-    PricePerHour DECIMAL(10,2)   DEFAULT NULL,
-    CreatedAt    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    OfferID      INT           NOT NULL AUTO_INCREMENT,
+    StudentID    INT           NOT NULL,
+    SkillID      INT           NOT NULL,
+    IsPaid       TINYINT(1)    NOT NULL DEFAULT 0,
+    PricePerHour DECIMAL(10,2) DEFAULT NULL,
+    CreatedAt    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (OfferID),
     CONSTRAINT fk_offer_student FOREIGN KEY (StudentID)
         REFERENCES Student(StudentID) ON DELETE CASCADE,
@@ -104,6 +122,7 @@ CREATE TABLE OfferedSkill (
         REFERENCES Skill(SkillID),
     CONSTRAINT chk_price CHECK (PricePerHour IS NULL OR PricePerHour >= 0)
 );
+
 CREATE TABLE RequestedSkill (
     RequestID     INT         NOT NULL AUTO_INCREMENT,
     StudentID     INT         NOT NULL,
@@ -131,6 +150,7 @@ CREATE TABLE OfferTimeSlot (
         REFERENCES OfferedSkill(OfferID) ON DELETE CASCADE,
     CONSTRAINT chk_slot_times CHECK (SlotEnd > SlotStart)
 );
+
 CREATE TABLE Conversation (
     ConversationID INT      NOT NULL AUTO_INCREMENT,
     Student1ID     INT      NOT NULL,
@@ -143,11 +163,11 @@ CREATE TABLE Conversation (
         REFERENCES Student(StudentID),
     CONSTRAINT chk_diff_students CHECK (Student1ID <> Student2ID)
 );
+
 CREATE TABLE Exchange (
     ExchangeID     INT         NOT NULL AUTO_INCREMENT,
     OfferID        INT         NOT NULL,
     RequestID      INT,
-    AdminID        INT,  
     ConversationID INT,
     ExchangeType   ENUM('free','paid') NOT NULL DEFAULT 'free',
     Status         ENUM('pending','active','completed','cancelled') NOT NULL DEFAULT 'pending',
@@ -157,8 +177,6 @@ CREATE TABLE Exchange (
         REFERENCES OfferedSkill(OfferID),
     CONSTRAINT fk_exch_request FOREIGN KEY (RequestID)
         REFERENCES RequestedSkill(RequestID),
-    CONSTRAINT fk_exch_admin FOREIGN KEY (AdminID)
-        REFERENCES Admin(AdminID),
     CONSTRAINT fk_exch_conv FOREIGN KEY (ConversationID)
         REFERENCES Conversation(ConversationID)
 );
@@ -222,13 +240,14 @@ CREATE TABLE Review (
     Feedback   TEXT,
     CreatedAt  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ReviewID),
-    CONSTRAINT chk_rating         CHECK (Rating BETWEEN 1 AND 5),
-    CONSTRAINT chk_review_diff    CHECK (ReviewerID <> RevieweeID),
-    CONSTRAINT fk_review_exch     FOREIGN KEY (ExchangeID) REFERENCES Exchange(ExchangeID),
-    CONSTRAINT fk_review_session  FOREIGN KEY (SessionID)  REFERENCES Session(SessionID),
-    CONSTRAINT fk_reviewer        FOREIGN KEY (ReviewerID) REFERENCES Student(StudentID),
-    CONSTRAINT fk_reviewee        FOREIGN KEY (RevieweeID) REFERENCES Student(StudentID)
+    CONSTRAINT chk_rating        CHECK (Rating BETWEEN 1 AND 5),
+    CONSTRAINT chk_review_diff   CHECK (ReviewerID <> RevieweeID),
+    CONSTRAINT fk_review_exch    FOREIGN KEY (ExchangeID) REFERENCES Exchange(ExchangeID),
+    CONSTRAINT fk_review_session FOREIGN KEY (SessionID)  REFERENCES Session(SessionID),
+    CONSTRAINT fk_reviewer       FOREIGN KEY (ReviewerID) REFERENCES Student(StudentID),
+    CONSTRAINT fk_reviewee       FOREIGN KEY (RevieweeID) REFERENCES Student(StudentID)
 );
+
 CREATE TABLE Message (
     MessageID      INT        NOT NULL AUTO_INCREMENT,
     ConversationID INT        NOT NULL,
@@ -256,10 +275,10 @@ CREATE TABLE SkillQuestion (
 );
 CREATE TABLE QuestionOption (
     QuestionID INT        NOT NULL,
-    OptionKey  CHAR(1)    NOT NULL,     -- 'A', 'B', 'C', 'D'
+    OptionKey  CHAR(1)    NOT NULL,
     OptionText TEXT       NOT NULL,
     IsCorrect  TINYINT(1) NOT NULL DEFAULT 0,
-    PRIMARY KEY (QuestionID, OptionKey),             -- composite PK = partial key
+    PRIMARY KEY (QuestionID, OptionKey),
     CONSTRAINT fk_option_question FOREIGN KEY (QuestionID)
         REFERENCES SkillQuestion(QuestionID) ON DELETE CASCADE
 );
@@ -306,27 +325,51 @@ CREATE TABLE Portfolio (
     CONSTRAINT fk_portfolio_skill   FOREIGN KEY (SkillID)
         REFERENCES Skill(SkillID)
 );
-CREATE INDEX idx_user_created ON User(CreatedAt);
-CREATE INDEX idx_student_university ON Student(UniversityID);
-CREATE INDEX idx_student_reputation ON Student(ReputationPoints DESC);
-CREATE INDEX idx_offer_student_skill ON OfferedSkill(StudentID, SkillID);
-CREATE INDEX idx_offer_skill ON OfferedSkill(SkillID);
+CREATE INDEX idx_user_created         ON User(CreatedAt);
+
+CREATE INDEX idx_student_university   ON Student(UniversityID);
+CREATE INDEX idx_student_reputation   ON Student(ReputationPoints DESC);
+
+CREATE INDEX idx_offer_student_skill  ON OfferedSkill(StudentID, SkillID);
+CREATE INDEX idx_offer_skill          ON OfferedSkill(SkillID);
+
 CREATE INDEX idx_request_skill_status ON RequestedSkill(SkillID, Status);
-CREATE INDEX idx_request_student ON RequestedSkill(StudentID);
-CREATE INDEX idx_slot_offer_status ON OfferTimeSlot(OfferID, Status);
-CREATE INDEX idx_exch_status_created ON Exchange(Status, CreatedAt);
-CREATE INDEX idx_exch_offer   ON Exchange(OfferID);
-CREATE INDEX idx_exch_request ON Exchange(RequestID);
-CREATE INDEX idx_session_exch ON Session(ExchangeID);
-CREATE INDEX idx_session_time ON Session(ScheduledStartTime);
-CREATE INDEX idx_payment_exch_status ON Payment(ExchangeID, PaymentStatus);
-CREATE INDEX idx_review_reviewee ON Review(RevieweeID);
-CREATE INDEX idx_review_reviewer ON Review(ReviewerID);
-CREATE INDEX idx_msg_conv_time ON Message(ConversationID, CreatedAt);
-CREATE INDEX idx_eval_student_skill ON SkillEvaluation(StudentID, SkillID);
-CREATE INDEX idx_eval_status        ON SkillEvaluation(Status);
-CREATE INDEX idx_portfolio_student ON Portfolio(StudentID);
-CREATE INDEX idx_portfolio_skill   ON Portfolio(SkillID);
+CREATE INDEX idx_request_student      ON RequestedSkill(StudentID);
+
+CREATE INDEX idx_slot_offer_status    ON OfferTimeSlot(OfferID, Status);
+CREATE INDEX idx_timeslot_offer       ON OfferTimeSlot(OfferID);
+CREATE INDEX idx_timeslot_status      ON OfferTimeSlot(Status);
+
+CREATE INDEX idx_exch_status_created  ON Exchange(Status, CreatedAt);
+CREATE INDEX idx_exch_offer           ON Exchange(OfferID);
+CREATE INDEX idx_exch_request         ON Exchange(RequestID);
+CREATE INDEX idx_exch_type            ON Exchange(ExchangeType);
+
+CREATE INDEX idx_session_exch         ON Session(ExchangeID);
+CREATE INDEX idx_session_time         ON Session(ScheduledStartTime);
+CREATE INDEX idx_session_status       ON Session(Status);
+
+CREATE INDEX idx_payment_exch_status  ON Payment(ExchangeID, PaymentStatus);
+
+CREATE INDEX idx_review_reviewee      ON Review(RevieweeID);
+CREATE INDEX idx_review_reviewer      ON Review(ReviewerID);
+CREATE INDEX idx_review_exchange      ON Review(ExchangeID);
+
+CREATE INDEX idx_msg_conv_time        ON Message(ConversationID, CreatedAt);
+CREATE INDEX idx_message_sender       ON Message(SenderID);
+CREATE INDEX idx_message_created      ON Message(CreatedAt);
+
+CREATE INDEX idx_question_skill       ON SkillQuestion(SkillID);
+
+CREATE INDEX idx_answer_eval          ON EvaluationAnswer(EvaluationID);
+
+CREATE INDEX idx_eval_student_skill   ON SkillEvaluation(StudentID, SkillID);
+CREATE INDEX idx_eval_status          ON SkillEvaluation(Status);
+CREATE INDEX idx_eval_skill           ON SkillEvaluation(SkillID);
+
+CREATE INDEX idx_portfolio_student    ON Portfolio(StudentID);
+CREATE INDEX idx_portfolio_skill      ON Portfolio(SkillID);
+
 CREATE VIEW vw_StudentProfile AS
 SELECT
     s.StudentID,
@@ -340,7 +383,7 @@ SELECT
     u.CreatedAt AS JoinedAt,
     u.LastLogin
 FROM Student s
-JOIN User        u    ON u.UserID       = s.StudentID
+JOIN User        u    ON u.UserID        = s.StudentID
 JOIN University  univ ON univ.UniversityID = s.UniversityID;
 
 CREATE VIEW vw_ExchangeSummary AS
@@ -357,11 +400,11 @@ SELECT
     pay.Amount                        AS PaymentAmount,
     e.CreatedAt
 FROM Exchange e
-JOIN OfferedSkill  os  ON os.OfferID   = e.OfferID
-JOIN Skill         sk  ON sk.SkillID   = os.SkillID
-JOIN Student       st_off ON st_off.StudentID = os.StudentID
-JOIN User          u_offerer   ON u_offerer.UserID   = st_off.StudentID
-LEFT JOIN RequestedSkill rs ON rs.RequestID = e.RequestID
+JOIN OfferedSkill  os     ON os.OfferID       = e.OfferID
+JOIN Skill         sk     ON sk.SkillID       = os.SkillID
+JOIN Student       st_off ON st_off.StudentID  = os.StudentID
+JOIN User          u_offerer    ON u_offerer.UserID    = st_off.StudentID
+LEFT JOIN RequestedSkill rs     ON rs.RequestID    = e.RequestID
 LEFT JOIN Student        st_req ON st_req.StudentID = rs.StudentID
 LEFT JOIN User           u_requester ON u_requester.UserID = st_req.StudentID
 LEFT JOIN Session  se  ON se.ExchangeID = e.ExchangeID
@@ -370,26 +413,28 @@ GROUP BY
     e.ExchangeID, e.ExchangeType, e.Status,
     sk.SkillName, u_offerer.FullName, u_requester.FullName,
     pay.PaymentStatus, pay.Amount, e.CreatedAt;
+
 CREATE VIEW vw_SkillLeaderboard AS
 SELECT
     s.StudentID,
     u.FullName,
     univ.UniversityName,
     s.ReputationPoints,
-    COUNT(DISTINCT os.OfferID)    AS SkillsOffered,
-    COUNT(DISTINCT rs.RequestID)  AS SkillsRequested,
-    ROUND(AVG(rv.Rating), 2)      AS AvgRating,
-    COUNT(DISTINCT rv.ReviewID)   AS TotalReviews
+    COUNT(DISTINCT os.OfferID)   AS SkillsOffered,
+    COUNT(DISTINCT rs.RequestID) AS SkillsRequested,
+    ROUND(AVG(rv.Rating), 2)     AS AvgRating,
+    COUNT(DISTINCT rv.ReviewID)  AS TotalReviews
 FROM Student s
-JOIN User           u    ON u.UserID       = s.StudentID
+JOIN User           u    ON u.UserID        = s.StudentID
 JOIN University     univ ON univ.UniversityID = s.UniversityID
-LEFT JOIN OfferedSkill  os ON os.StudentID  = s.StudentID
-LEFT JOIN RequestedSkill rs ON rs.StudentID = s.StudentID
-LEFT JOIN Review        rv ON rv.RevieweeID = s.StudentID
+LEFT JOIN OfferedSkill   os ON os.StudentID  = s.StudentID
+LEFT JOIN RequestedSkill rs ON rs.StudentID  = s.StudentID
+LEFT JOIN Review         rv ON rv.RevieweeID = s.StudentID
 GROUP BY s.StudentID, u.FullName, univ.UniversityName, s.ReputationPoints
 ORDER BY s.ReputationPoints DESC;
 
 DELIMITER $$
+
 CREATE TRIGGER trg_payment_validate
 BEFORE INSERT ON Payment
 FOR EACH ROW
@@ -397,12 +442,12 @@ BEGIN
     DECLARE v_type VARCHAR(50);
     SELECT ExchangeType INTO v_type
     FROM Exchange WHERE ExchangeID = NEW.ExchangeID;
-
     IF v_type NOT IN ('paid') THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Cannot create payment for a non-paid exchange.';
     END IF;
 END$$
+
 CREATE TRIGGER trg_reputation_update
 AFTER INSERT ON Review
 FOR EACH ROW
@@ -411,6 +456,7 @@ BEGIN
     SET ReputationPoints = ReputationPoints + NEW.Rating
     WHERE StudentID = NEW.RevieweeID;
 END$$
+
 CREATE TRIGGER trg_slot_no_double_book
 BEFORE UPDATE ON OfferTimeSlot
 FOR EACH ROW
@@ -420,6 +466,7 @@ BEGIN
             SET MESSAGE_TEXT = 'Time slot is already booked.';
     END IF;
 END$$
+
 CREATE TRIGGER trg_exchange_cancel_sessions
 AFTER UPDATE ON Exchange
 FOR EACH ROW
@@ -431,4 +478,5 @@ BEGIN
           AND Status IN ('scheduled', 'ongoing');
     END IF;
 END$$
+
 DELIMITER ;
