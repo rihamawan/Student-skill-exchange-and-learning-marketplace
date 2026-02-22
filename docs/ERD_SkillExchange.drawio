@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0" version="29.5.1">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0" version="29.5.2">
   <diagram id="cbhi1fN7hp2tnVouBEgx" name="Page-1">
-    <mxGraphModel dx="1376" dy="629" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="5000" pageHeight="4000" math="0" shadow="0">
+    <mxGraphModel dx="1927" dy="880" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="5000" pageHeight="4000" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -268,9 +268,6 @@
         <mxCell id="off_ph" parent="1" style="ellipse;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#1A3C5E;fontColor=#1A3C5E;fontSize=9;" value="PricePerHour" vertex="1">
           <mxGeometry height="45" width="120" x="820" y="1220" as="geometry" />
         </mxCell>
-        <mxCell id="off_de" parent="1" style="ellipse;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#1A3C5E;fontColor=#1A3C5E;fontSize=9;" value="Description" vertex="1">
-          <mxGeometry height="45" width="110" x="956" y="1220" as="geometry" />
-        </mxCell>
         <mxCell id="off_cr" parent="1" style="ellipse;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#1A3C5E;fontColor=#1A3C5E;fontSize=9;" value="CreatedAt" vertex="1">
           <mxGeometry height="45" width="100" x="1190" y="1040" as="geometry" />
         </mxCell>
@@ -281,9 +278,6 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="eof3" edge="1" parent="1" source="offskill" style="endArrow=none;" target="off_ph">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="eof4" edge="1" parent="1" source="offskill" style="endArrow=none;" target="off_de">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="eof5" edge="1" parent="1" source="offskill" style="endArrow=none;" target="off_cr">
@@ -313,9 +307,6 @@
         <mxCell id="rq_pk" parent="1" style="ellipse;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#1A3C5E;fontColor=#1A3C5E;fontSize=9;html=1;" value="&#xa;&lt;u&gt;RequestID&lt;/u&gt;" vertex="1">
           <mxGeometry height="45" width="120" x="1580" y="1020" as="geometry" />
         </mxCell>
-        <mxCell id="rq_de" parent="1" style="ellipse;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#1A3C5E;fontColor=#1A3C5E;fontSize=9;" value="Description" vertex="1">
-          <mxGeometry height="45" width="110" x="1530" y="1120" as="geometry" />
-        </mxCell>
         <mxCell id="rq_pt" parent="1" style="ellipse;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#1A3C5E;fontColor=#1A3C5E;fontSize=9;" value="PreferredTime" vertex="1">
           <mxGeometry height="45" width="120" x="1530" y="1200" as="geometry" />
         </mxCell>
@@ -329,9 +320,6 @@
           <mxGeometry height="45" width="100" x="1900" y="1040" as="geometry" />
         </mxCell>
         <mxCell id="erq1" edge="1" parent="1" source="reqskill" style="endArrow=none;" target="rq_pk">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="erq2" edge="1" parent="1" source="reqskill" style="endArrow=none;" target="rq_de">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="erq3" edge="1" parent="1" source="reqskill" style="endArrow=none;" target="rq_pt">
@@ -1067,16 +1055,6 @@
           <mxGeometry height="50" relative="1" width="50" as="geometry">
             <mxPoint x="440" y="1720" as="sourcePoint" />
             <mxPoint x="490" y="1670" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="vq0zK-XnBW6jL-nDALtO-17" parent="1" style="ellipse;whiteSpace=wrap;fillColor=light-dark(#EAF4FB,#1D293B);strokeColor=#1A5276;fontColor=#1A5276;fontSize=9;" value="AdminID (FK)" vertex="1">
-          <mxGeometry height="45" width="130" x="1160" y="1590" as="geometry" />
-        </mxCell>
-        <mxCell id="vq0zK-XnBW6jL-nDALtO-20" edge="1" parent="1" source="vq0zK-XnBW6jL-nDALtO-17" style="endArrow=none;html=1;rounded=0;entryX=0;entryY=1;entryDx=0;entryDy=0;exitX=0.995;exitY=0.741;exitDx=0;exitDy=0;exitPerimeter=0;" target="exch" value="">
-          <mxGeometry height="50" relative="1" width="50" as="geometry">
-            <Array as="points" />
-            <mxPoint x="1060" y="1730" as="sourcePoint" />
-            <mxPoint x="1050" y="1700" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="vq0zK-XnBW6jL-nDALtO-21" parent="1" style="ellipse;whiteSpace=wrap;fillColor=light-dark(#EAF4FB,#1D293B);strokeColor=#1A5276;fontColor=#1A5276;fontSize=9;" value="RequestID (FK)" vertex="1">
