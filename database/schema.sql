@@ -164,7 +164,7 @@ CREATE TABLE Exchange (
 CREATE TABLE PaidExchange (
     ExchangeID INT           NOT NULL,
     Price      DECIMAL(10,2) NOT NULL,
-    Currency   CHAR(3)       NOT NULL DEFAULT 'USD',
+    Currency   CHAR(3)       NOT NULL DEFAULT 'PKR',
     PRIMARY KEY (ExchangeID),
     CONSTRAINT fk_paidexch FOREIGN KEY (ExchangeID)
         REFERENCES Exchange(ExchangeID) ON DELETE CASCADE,
