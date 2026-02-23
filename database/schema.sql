@@ -9,12 +9,12 @@ DROP TABLE IF EXISTS SkillQuestion;
 DROP TABLE IF EXISTS Portfolio;
 DROP TABLE IF EXISTS Review;
 DROP TABLE IF EXISTS Message;
-DROP TABLE IF EXISTS Conversation;
 DROP TABLE IF EXISTS VideoSession;
 DROP TABLE IF EXISTS Payment;
 DROP TABLE IF EXISTS Session;
 DROP TABLE IF EXISTS PaidExchange;
 DROP TABLE IF EXISTS Exchange;
+DROP TABLE IF EXISTS Conversation;
 DROP TABLE IF EXISTS OfferTimeSlot;
 DROP TABLE IF EXISTS RequestedSkill;
 DROP TABLE IF EXISTS OfferedSkill;
@@ -74,7 +74,7 @@ CREATE TABLE Admin (
 );
 CREATE TABLE SkillCategory (
     CategoryID   INT          NOT NULL AUTO_INCREMENT,
-    CategoryName ENUM('Programming','Languages','Design','Music','Business','Academics','Creative','Life Skills') NOT NULL,
+    CategoryName ENUM('Programming','Languages','Design','Academic','Music & Arts','Professional','Data & Analytics','Engineering','Communication','Other') NOT NULL,
     Description  TEXT,
     CreatedAt    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (CategoryID),
@@ -84,23 +84,17 @@ CREATE TABLE Skill (
     SkillID         INT          NOT NULL AUTO_INCREMENT,
     CategoryID      INT          NOT NULL,
     SkillName       ENUM(
-                        -- Programming
-                        'Python','JavaScript','Java','C++','Web Development',
-                        -- Languages
-                        'English','Spanish','French','Arabic','Urdu',
-                        -- Design
-                        'Graphic Design','UI/UX','Figma','Adobe Photoshop',
-                        -- Music
-                        'Guitar','Piano','Music Production','Singing',
-                        -- Business
-                        'Digital Marketing','Excel','Presentation Skills',
-                        -- Academics
-                        'Mathematics','Calculus','Physics','Essay Writing',
-                        -- Creative
-                        'Creative Writing','Photography','Video Editing',
-                        -- Life Skills
-                        'Cooking','Public Speaking','Time Management'
-                    ) NOT NULL,
+                        'Python','JavaScript','SQL & Databases',
+                        'English','Urdu','Arabic',
+                        'Graphic Design','UI/UX','Video Editing',
+                        'Calculus','Linear Algebra','Statistics',
+                        'Guitar','Piano','Sketching',
+                        'Resume Writing','Public Speaking','Interview Prep',
+                        'Data Analysis','Machine Learning','Excel',
+                        'MATLAB','Arduino','PCB Design',
+                        'Content Writing','Technical Writing','Creative Writing',
+                        'Photography','Digital Marketing','Project Management'
+                    ) DEFAULT 'Video Editing',
     Description     TEXT,
     DifficultyLevel ENUM('beginner','intermediate','advanced') DEFAULT 'beginner',
     CreatedAt       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -127,8 +121,8 @@ CREATE TABLE RequestedSkill (
     RequestID     INT         NOT NULL AUTO_INCREMENT,
     StudentID     INT         NOT NULL,
     SkillID       INT         NOT NULL,
-    PreferredTime ENUM('Morning','Evenings','Weekdays','Weekends','Flexible') DEFAULT NULL,
-    PreferredMode ENUM('online','in-person','both') DEFAULT 'both',
+    PreferredTime ENUM('Morning','Evenings','Weekdays','Weekends','Flexible') DEFAULT 'Flexible',
+    PreferredMode ENUM('Exchange','Paid') DEFAULT 'Exchange',
     Status        ENUM('open','matched','closed') NOT NULL DEFAULT 'open',
     CreatedAt     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (RequestID),
@@ -168,8 +162,8 @@ CREATE TABLE Exchange (
     ExchangeID     INT         NOT NULL AUTO_INCREMENT,
     OfferID        INT         NOT NULL,
     RequestID      INT,
-    ConversationID INT,
-    ExchangeType   ENUM('free','paid') NOT NULL DEFAULT 'free',
+    ConversationID INT         NOT NULL,
+    ExchangeType  varchar(50) NOT NULL DEFAULT 'Exchange',
     Status         ENUM('pending','active','completed','cancelled') NOT NULL DEFAULT 'pending',
     CreatedAt      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ExchangeID),
@@ -330,19 +324,13 @@ CREATE INDEX idx_user_created         ON User(CreatedAt);
 CREATE INDEX idx_student_university   ON Student(UniversityID);
 CREATE INDEX idx_student_reputation   ON Student(ReputationPoints DESC);
 
-CREATE INDEX idx_offer_student_skill  ON OfferedSkill(StudentID, SkillID);
-CREATE INDEX idx_offer_skill          ON OfferedSkill(SkillID);
-
-CREATE INDEX idx_request_skill_status ON RequestedSkill(SkillID, Status);
-CREATE INDEX idx_request_student      ON RequestedSkill(StudentID);
+-- Performance-test indexes (idx_offer_*, idx_request_*, etc.) are created by performance.sql for comparison.
 
 CREATE INDEX idx_slot_offer_status    ON OfferTimeSlot(OfferID, Status);
 CREATE INDEX idx_timeslot_offer       ON OfferTimeSlot(OfferID);
 CREATE INDEX idx_timeslot_status      ON OfferTimeSlot(Status);
 
-CREATE INDEX idx_exch_status_created  ON Exchange(Status, CreatedAt);
-CREATE INDEX idx_exch_offer           ON Exchange(OfferID);
-CREATE INDEX idx_exch_request         ON Exchange(RequestID);
+-- idx_exch_status_created, idx_exch_offer, idx_exch_request created by performance.sql.
 CREATE INDEX idx_exch_type            ON Exchange(ExchangeType);
 
 CREATE INDEX idx_session_exch         ON Session(ExchangeID);
@@ -351,12 +339,8 @@ CREATE INDEX idx_session_status       ON Session(Status);
 
 CREATE INDEX idx_payment_exch_status  ON Payment(ExchangeID, PaymentStatus);
 
-CREATE INDEX idx_review_reviewee      ON Review(RevieweeID);
-CREATE INDEX idx_review_reviewer      ON Review(ReviewerID);
-CREATE INDEX idx_review_exchange      ON Review(ExchangeID);
-
-CREATE INDEX idx_msg_conv_time        ON Message(ConversationID, CreatedAt);
-CREATE INDEX idx_message_sender       ON Message(SenderID);
+-- idx_review_* created by performance.sql.
+-- idx_msg_conv_time, idx_message_sender created by performance.sql.
 CREATE INDEX idx_message_created      ON Message(CreatedAt);
 
 CREATE INDEX idx_question_skill       ON SkillQuestion(SkillID);
