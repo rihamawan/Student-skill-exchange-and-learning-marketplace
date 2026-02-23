@@ -74,7 +74,7 @@ CREATE TABLE Admin (
 );
 CREATE TABLE SkillCategory (
     CategoryID   INT          NOT NULL AUTO_INCREMENT,
-    CategoryName ENUM('Programming','Languages','Design','Academic','Music & Arts','Professional','Data & Analytics','Engineering','Communication','Other') NOT NULL,
+    CategoryName ENUM('Programming','Languages','Design','Academic','Music & Arts','Professional','Data & Analytics','Engineering','Communication','Other') NOT NULL Default 'Other',
     Description  TEXT,
     CreatedAt    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (CategoryID),
@@ -167,6 +167,7 @@ CREATE TABLE Exchange (
     Status         ENUM('pending','active','completed','cancelled') NOT NULL DEFAULT 'pending',
     CreatedAt      DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ExchangeID),
+    CONSTRAINT chk_exchange_type CHECK (ExchangeType IN ('Exchange','paid')),
     CONSTRAINT fk_exch_offer FOREIGN KEY (OfferID)
         REFERENCES OfferedSkill(OfferID),
     CONSTRAINT fk_exch_request FOREIGN KEY (RequestID)
