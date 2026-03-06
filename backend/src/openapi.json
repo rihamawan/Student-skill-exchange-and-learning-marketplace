@@ -1,0 +1,206 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Student Skill Exchange API",
+    "description": "Backend API for the Skill Exchange platform. Users CRUD and transaction endpoints (match-request, paid-exchange).",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "http://localhost:5000", "description": "Local dev" }],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": ["Health"],
+        "responses": {
+          "200": { "description": "API is healthy", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "summary": "List all users",
+        "tags": ["Users"],
+        "responses": {
+          "200": { "description": "List of users", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserListResponse" } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+        }
+      },
+      "post": {
+        "summary": "Create a user",
+        "tags": ["Users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email"],
+                "properties": {
+                  "name": { "type": "string", "example": "Ali Khan" },
+                  "email": { "type": "string", "format": "email", "example": "ali@example.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "User created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SingleUserResponse" } } },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
+          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+        }
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "tags": ["Users"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "User found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SingleUserResponse" } } },
+          "404": { "description": "User not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
+          "400": { "description": "Invalid id", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+        }
+      },
+      "put": {
+        "summary": "Update user",
+        "tags": ["Users"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "User updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SingleUserResponse" } } },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
+          "404": { "description": "User not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+        }
+      },
+      "delete": {
+        "summary": "Delete user",
+        "tags": ["Users"],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "User deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeleteResponse" } } },
+          "404": { "description": "User not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+        }
+      }
+    },
+    "/api/v1/transactions/match-request": {
+      "post": {
+        "summary": "Match request (create exchange + session)",
+        "description": "Creates an Exchange and a Session in one transaction, and marks the request as matched. Request must be open.",
+        "tags": ["Transactions"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["offerId", "requestId", "conversationId", "scheduledStart", "scheduledEnd"],
+                "properties": {
+                  "offerId": { "type": "integer", "example": 7 },
+                  "requestId": { "type": "integer", "example": 3 },
+                  "conversationId": { "type": "integer", "example": 3 },
+                  "scheduledStart": { "type": "string", "example": "2025-03-15 10:00:00" },
+                  "scheduledEnd": { "type": "string", "example": "2025-03-15 11:00:00" },
+                  "venue": { "type": "string", "example": "ITU Lab 1" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Exchange and session created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MatchRequestResponse" } } },
+          "400": { "description": "Request not found or not open", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
+          "500": { "description": "Transaction failed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+        }
+      }
+    },
+    "/api/v1/transactions/paid-exchange": {
+      "post": {
+        "summary": "Record paid exchange and payment",
+        "description": "Marks the exchange as paid, creates PaidExchange and Payment in one transaction.",
+        "tags": ["Transactions"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["exchangeId", "price"],
+                "properties": {
+                  "exchangeId": { "type": "integer", "example": 111 },
+                  "price": { "type": "number", "example": 750 },
+                  "currency": { "type": "string", "example": "PKR" },
+                  "paymentMethod": { "type": "string", "example": "JazCash" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Paid exchange and payment recorded", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaidExchangeResponse" } } },
+          "400": { "description": "Invalid price", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
+          "404": { "description": "Exchange not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
+          "500": { "description": "Transaction failed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": { "success": { "type": "boolean" }, "message": { "type": "string" } }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": { "success": { "type": "boolean", "example": false }, "error": { "type": "string" } }
+      },
+      "UserListResponse": {
+        "type": "object",
+        "properties": { "success": { "type": "boolean" }, "data": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } }
+      },
+      "SingleUserResponse": {
+        "type": "object",
+        "properties": { "success": { "type": "boolean" }, "data": { "$ref": "#/components/schemas/User" } }
+      },
+      "User": {
+        "type": "object",
+        "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" } }
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "properties": { "success": { "type": "boolean" }, "data": { "type": "object", "properties": { "message": { "type": "string" } } } }
+      },
+      "MatchRequestResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": { "exchangeId": { "type": "integer" }, "sessionId": { "type": "integer" } }
+          }
+        }
+      },
+      "PaidExchangeResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": { "type": "object", "properties": { "message": { "type": "string" } } }
+        }
+      }
+    }
+  }
+}

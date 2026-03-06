@@ -1,0 +1,5 @@
+node_modules/
+.env
+
+# Markdown docs (do not push to GitHub)
+*.md

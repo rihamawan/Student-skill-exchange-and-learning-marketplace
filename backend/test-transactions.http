@@ -1,0 +1,36 @@
+### 1) Match request — create exchange + session (use requestId 1 first; if 400, use 1b)
+POST http://localhost:5000/api/v1/transactions/match-request
+Content-Type: application/json
+
+{
+  "offerId": 4,
+  "requestId": 1,
+  "conversationId": 3,
+  "scheduledStart": "2025-03-15 10:00:00",
+  "scheduledEnd": "2025-03-15 11:00:00",
+  "venue": "ITU Lab 1"
+}
+
+### 1b) Match request — alternative (when requestId 1 is already matched)
+POST http://localhost:5000/api/v1/transactions/match-request
+Content-Type: application/json
+
+{
+  "offerId": 7,
+  "requestId": 3,
+  "conversationId": 3,
+  "scheduledStart": "2025-03-15 10:00:00",
+  "scheduledEnd": "2025-03-15 11:00:00",
+  "venue": "ITU Lab 1"
+}
+
+### 2) Paid exchange — record payment for exchange 111
+POST http://localhost:5000/api/v1/transactions/paid-exchange
+Content-Type: application/json
+
+{
+  "exchangeId": 111,
+  "price": 750,
+  "currency": "PKR",
+  "paymentMethod": "JazCash"
+}
