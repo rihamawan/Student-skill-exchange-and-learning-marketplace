@@ -16,13 +16,31 @@ function toApiUser(row) {
 }
 
 /**
- * GET /api/v1/users - list all users
+ * GET /api/v1/users/me - current user (requires auth)
+ */
+function me(req, res) {
+  res.status(200).json({ success: true, data: toApiUser(req.user) });
+}
+
+/**
+ * GET /api/v1/users - list users. Superadmin: all users. Admin: only students at their university.
  */
 async function list(req, res) {
   try {
-    const rows = await userService.getAllUsers();
-    const data = rows.map((r) => toApiUser(r));
-    res.status(200).json({ success: true, data });
+    const role = String(req.user?.role ?? '').toLowerCase();
+    if (role === 'superadmin') {
+      const rows = await userService.getAllUsers();
+      return res.status(200).json({ success: true, data: rows.map((r) => toApiUser(r)) });
+    }
+    if (role === 'admin') {
+      const universityId = req.user.adminUniversityID;
+      if (universityId == null) {
+        return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+      }
+      const rows = await userService.getUsersByUniversity(universityId);
+      return res.status(200).json({ success: true, data: rows.map((r) => toApiUser(r)) });
+    }
+    return res.status(403).json({ success: false, error: 'Insufficient permissions' });
   } catch (err) {
     console.error('users.list', err);
     res.status(500).json({ success: false, error: 'Failed to list users' });
@@ -111,6 +129,7 @@ async function remove(req, res) {
 }
 
 module.exports = {
+  me,
   list,
   getById,
   create,

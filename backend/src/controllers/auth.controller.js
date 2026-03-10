@@ -1,0 +1,75 @@
+/**
+ * src/controllers/auth.controller.js
+ * Login and register. Returns { user, token } on success.
+ */
+
+const authService = require('../services/auth.service');
+const userService = require('../services/user.service');
+
+/** Strip password and shape for API */
+function toAuthUser(row) {
+  if (!row) return null;
+  const { PasswordHash, ...rest } = row;
+  return { id: rest.UserID, email: rest.Email, fullName: rest.FullName, role: rest.role, phoneNumber: rest.PhoneNumber ?? null };
+}
+
+/**
+ * POST /auth/register - create account, return user + JWT
+ */
+async function register(req, res) {
+  try {
+    const { email, password, fullName, phoneNumber } = req.body;
+    const passwordHash = await authService.hashPassword(password);
+    const created = await userService.createUser({
+      email,
+      passwordHash,
+      fullName,
+      phoneNumber: phoneNumber || null,
+    });
+    const user = toAuthUser(created);
+    const token = authService.signToken({
+      userId: created.UserID,
+      email: created.Email,
+      role: created.role,
+    });
+    res.status(201).json({ success: true, data: { user, token } });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'Email already in use' });
+    }
+    console.error('auth.register', err);
+    res.status(500).json({ success: false, error: 'Registration failed' });
+  }
+}
+
+/**
+ * POST /auth/login - validate email/password, return user + JWT
+ */
+async function login(req, res) {
+  try {
+    const { email, password } = req.body;
+    const userRow = await userService.getUserByEmail(email);
+    if (!userRow) {
+      return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    }
+    const match = await authService.comparePassword(password, userRow.PasswordHash);
+    if (!match) {
+      return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    }
+    const user = toAuthUser(userRow);
+    const token = authService.signToken({
+      userId: userRow.UserID,
+      email: userRow.Email,
+      role: userRow.role,
+    });
+    res.status(200).json({ success: true, data: { user, token } });
+  } catch (err) {
+    console.error('auth.login', err);
+    res.status(500).json({ success: false, error: 'Login failed' });
+  }
+}
+
+module.exports = {
+  register,
+  login,
+};

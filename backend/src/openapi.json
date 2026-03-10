@@ -2,32 +2,181 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Student Skill Exchange API",
-    "description": "Backend API for the Skill Exchange platform. Users CRUD and transaction endpoints (match-request, paid-exchange).",
+    "description": "Backend API for the Skill Exchange platform. Auth (register/login), Users CRUD with RBAC, transaction endpoints (match-request, paid-exchange). Protected routes require Authorization: Bearer <JWT>.",
     "version": "1.0.0"
   },
   "servers": [{ "url": "http://localhost:5000", "description": "Local dev" }],
   "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Register",
+        "description": "Create a new account. Returns user (no password) and JWT. Use the token in Authorization header for protected routes.",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or email already in use",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Login",
+        "description": "Validate email/password and return user (no password) and JWT. Use the token in Authorization: Bearer <token> for protected routes.",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "Health check",
         "tags": ["Health"],
         "responses": {
-          "200": { "description": "API is healthy", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "summary": "Current user",
+        "description": "Returns the authenticated user (from JWT). Requires Authorization: Bearer <token>.",
+        "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SingleUserResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       }
     },
     "/api/v1/users": {
       "get": {
-        "summary": "List all users",
+        "summary": "List users",
+        "description": "Superadmin: all users. Admin: only students at their university. Requires auth + admin or superadmin role.",
         "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": { "description": "List of users", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserListResponse" } } },
-          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          "200": {
+            "description": "List of users",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserListResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       },
       "post": {
-        "summary": "Create a user",
+        "summary": "Create user",
+        "description": "Admin or superadmin only. Real signup is POST /auth/register.",
         "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -44,26 +193,104 @@
           }
         },
         "responses": {
-          "201": { "description": "User created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SingleUserResponse" } } },
-          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
-          "500": { "description": "Server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SingleUserResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       }
     },
     "/api/v1/users/{id}": {
       "get": {
         "summary": "Get user by ID",
+        "description": "Self, or superadmin (any), or admin (only students at their university).",
         "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
         "responses": {
-          "200": { "description": "User found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SingleUserResponse" } } },
-          "404": { "description": "User not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
-          "400": { "description": "Invalid id", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SingleUserResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       },
       "put": {
         "summary": "Update user",
+        "description": "Self, or superadmin (any), or admin (only students at their university).",
         "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
         "requestBody": {
           "required": true,
@@ -81,18 +308,87 @@
           }
         },
         "responses": {
-          "200": { "description": "User updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SingleUserResponse" } } },
-          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
-          "404": { "description": "User not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          "200": {
+            "description": "User updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SingleUserResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       },
       "delete": {
         "summary": "Delete user",
+        "description": "Superadmin (any) or admin (only students at their university).",
         "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
         "responses": {
-          "200": { "description": "User deleted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeleteResponse" } } },
-          "404": { "description": "User not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          "200": {
+            "description": "User deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DeleteResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       }
     },
@@ -121,9 +417,30 @@
           }
         },
         "responses": {
-          "201": { "description": "Exchange and session created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MatchRequestResponse" } } },
-          "400": { "description": "Request not found or not open", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
-          "500": { "description": "Transaction failed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          "201": {
+            "description": "Exchange and session created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MatchRequestResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Request not found or not open",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Transaction failed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       }
     },
@@ -150,16 +467,93 @@
           }
         },
         "responses": {
-          "200": { "description": "Paid exchange and payment recorded", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaidExchangeResponse" } } },
-          "400": { "description": "Invalid price", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
-          "404": { "description": "Exchange not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } },
-          "500": { "description": "Transaction failed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          "200": {
+            "description": "Paid exchange and payment recorded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaidExchangeResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid price",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Exchange not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Transaction failed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
         }
       }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT from POST /auth/login or POST /auth/register. Header: Authorization: Bearer <token>"
+      }
+    },
     "schemas": {
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["email", "password", "fullName"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student@uni.edu.pk" },
+          "password": { "type": "string", "minLength": 6, "example": "secret123" },
+          "fullName": { "type": "string", "example": "Ali Khan" },
+          "phoneNumber": { "type": "string", "example": "+923001234567" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "student@uni.edu.pk" },
+          "password": { "type": "string", "example": "secret123" }
+        }
+      },
+      "AuthUser": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string" },
+          "fullName": { "type": "string" },
+          "role": { "type": "string", "enum": ["student", "admin", "superadmin"] },
+          "phoneNumber": { "type": "string", "nullable": true }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": { "$ref": "#/components/schemas/AuthUser" },
+              "token": { "type": "string", "description": "JWT for Authorization header" }
+            }
+          }
+        }
+      },
       "HealthResponse": {
         "type": "object",
         "properties": { "success": { "type": "boolean" }, "message": { "type": "string" } }
@@ -198,7 +592,10 @@
         "type": "object",
         "properties": {
           "success": { "type": "boolean" },
-          "data": { "type": "object", "properties": { "message": { "type": "string" } } }
+          "data": {
+            "type": "object",
+            "properties": { "message": { "type": "string" } }
+          }
         }
       }
     }

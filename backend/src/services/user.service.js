@@ -7,14 +7,19 @@
 const { getPool } = require('./db');
 
 /**
- * Get user by email with role (student | admin | null).
- * @param {string} email
- * @returns {Promise<object|null>} User row with role, or null
+ * Get user by email with role (student | admin | superadmin | null).
+ * Superadmin = single platform-wide admin (Admin.AdminLevel = 'superadmin'). Admin = per-university (AdminLevel = 'standard').
  */
 async function getUserByEmail(email) {
   const [rows] = await getPool().query(
     `SELECT u.UserID, u.Email, u.PasswordHash, u.FullName, u.PhoneNumber, u.CreatedAt, u.LastLogin,
-            CASE WHEN a.AdminID IS NOT NULL THEN 'admin' WHEN s.StudentID IS NOT NULL THEN 'student' ELSE NULL END AS role
+            a.UniversityID AS adminUniversityID,
+            CASE
+              WHEN a.AdminID IS NOT NULL AND a.AdminLevel = 'superadmin' THEN 'superadmin'
+              WHEN a.AdminID IS NOT NULL THEN 'admin'
+              WHEN s.StudentID IS NOT NULL THEN 'student'
+              ELSE NULL
+            END AS role
      FROM User u
      LEFT JOIN Admin a ON a.AdminID = u.UserID
      LEFT JOIN Student s ON s.StudentID = u.UserID
@@ -25,14 +30,19 @@ async function getUserByEmail(email) {
 }
 
 /**
- * Get user by id with role.
- * @param {number} userId
- * @returns {Promise<object|null>} User row with role, or null
+ * Get user by id with role (student | admin | superadmin | null).
+ * Superadmin = platform-wide; admin = per-university (has adminUniversityID).
  */
 async function getUserById(userId) {
   const [rows] = await getPool().query(
     `SELECT u.UserID, u.Email, u.PasswordHash, u.FullName, u.PhoneNumber, u.CreatedAt, u.LastLogin,
-            CASE WHEN a.AdminID IS NOT NULL THEN 'admin' WHEN s.StudentID IS NOT NULL THEN 'student' ELSE NULL END AS role
+            a.UniversityID AS adminUniversityID,
+            CASE
+              WHEN a.AdminID IS NOT NULL AND a.AdminLevel = 'superadmin' THEN 'superadmin'
+              WHEN a.AdminID IS NOT NULL THEN 'admin'
+              WHEN s.StudentID IS NOT NULL THEN 'student'
+              ELSE NULL
+            END AS role
      FROM User u
      LEFT JOIN Admin a ON a.AdminID = u.UserID
      LEFT JOIN Student s ON s.StudentID = u.UserID
@@ -43,7 +53,7 @@ async function getUserById(userId) {
 }
 
 /**
- * Get all users (UserID, Email, FullName only — for list).
+ * Get all users (UserID, Email, FullName only — for list). Use for superadmin.
  * @returns {Promise<object[]>}
  */
 async function getAllUsers() {
@@ -51,6 +61,37 @@ async function getAllUsers() {
     `SELECT UserID, Email, FullName FROM User ORDER BY UserID`
   );
   return rows;
+}
+
+/**
+ * Get users who are students at the given university (for admin's list).
+ * @param {number} universityId
+ * @returns {Promise<object[]>} Same shape as getAllUsers (UserID, Email, FullName)
+ */
+async function getUsersByUniversity(universityId) {
+  const [rows] = await getPool().query(
+    `SELECT u.UserID, u.Email, u.FullName
+     FROM User u
+     INNER JOIN Student s ON s.StudentID = u.UserID
+     WHERE s.UniversityID = ?
+     ORDER BY u.UserID`,
+    [universityId]
+  );
+  return rows;
+}
+
+/**
+ * True if userId is a student at the given university (for admin scope check).
+ * @param {number} userId
+ * @param {number} universityId
+ * @returns {Promise<boolean>}
+ */
+async function isStudentAtUniversity(userId, universityId) {
+  const [rows] = await getPool().query(
+    `SELECT 1 FROM Student WHERE StudentID = ? AND UniversityID = ? LIMIT 1`,
+    [userId, universityId]
+  );
+  return rows.length > 0;
 }
 
 /**
@@ -101,6 +142,8 @@ module.exports = {
   getUserByEmail,
   getUserById,
   getAllUsers,
+  getUsersByUniversity,
+  isStudentAtUniversity,
   createUser,
   updateUser,
   deleteUser,

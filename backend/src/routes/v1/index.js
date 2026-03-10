@@ -6,6 +6,7 @@
 const express = require('express');
 const usersRoutes = require('./users.routes');
 const transactionsRoutes = require('./transactions.routes');
+const authRoutes = require('./auth.routes');
 
 const router = express.Router();
 
@@ -13,6 +14,9 @@ const router = express.Router();
 router.get('/health', (req, res) => {
   res.json({ success: true, message: 'API v1 healthy' });
 });
+
+// Auth: /api/v1/auth (login, register)
+router.use('/auth', authRoutes);
 
 // Users resource: /api/v1/users
 router.use('/users', usersRoutes);
