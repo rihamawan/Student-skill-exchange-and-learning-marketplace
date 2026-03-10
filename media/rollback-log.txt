@@ -1,0 +1,9 @@
+[Transaction] ROLLBACK — Exchange not found.
+
+[Transaction] ROLLBACK — Request not found or not open.
+
+[Transaction] ROLLBACK — Offer not found.
+
+[Transaction] ROLLBACK — Conversation not found.
+
+these rollbacks are from the transactions written in backend\test-rollback.http

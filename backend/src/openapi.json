@@ -2,15 +2,36 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Student Skill Exchange API",
-    "description": "Backend API for the Skill Exchange platform. Auth (register/login), Users CRUD with RBAC, transaction endpoints (match-request, paid-exchange). Protected routes require Authorization: Bearer <JWT>.",
+    "description": "Backend API for the Skill Exchange platform. Auth (register/login), Users CRUD with RBAC, transactions (match-request, paid-exchange), universities, skills, exchanges, sessions, reviews, portfolio, payments. Protected routes require Authorization: Bearer <JWT>.",
     "version": "1.0.0"
   },
-  "servers": [{ "url": "http://localhost:5000", "description": "Local dev" }],
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local dev"
+    }
+  ],
   "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
         "summary": "Register",
-        "description": "Create a new account. Returns user (no password) and JWT. Use the token in Authorization header for protected routes.",
+        "description": "Create a new account. If universityId is provided, creates a Student row so the user gets role student.",
         "tags": ["Auth"],
         "requestBody": {
           "required": true,
@@ -36,14 +57,6 @@
                 "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
           }
         }
       }
@@ -51,7 +64,7 @@
     "/api/v1/auth/login": {
       "post": {
         "summary": "Login",
-        "description": "Validate email/password and return user (no password) and JWT. Use the token in Authorization: Bearer <token> for protected routes.",
+        "description": "Validate email/password and return user and JWT.",
         "tags": ["Auth"],
         "requestBody": {
           "required": true,
@@ -77,30 +90,6 @@
                 "schema": { "$ref": "#/components/schemas/ErrorResponse" }
               }
             }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/health": {
-      "get": {
-        "summary": "Health check",
-        "tags": ["Health"],
-        "responses": {
-          "200": {
-            "description": "API is healthy",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthResponse" }
-              }
-            }
           }
         }
       }
@@ -108,7 +97,7 @@
     "/api/v1/users/me": {
       "get": {
         "summary": "Current user",
-        "description": "Returns the authenticated user (from JWT). Requires Authorization: Bearer <token>.",
+        "description": "Returns the authenticated user (from JWT).",
         "tags": ["Users"],
         "security": [{ "bearerAuth": [] }],
         "responses": {
@@ -121,7 +110,7 @@
             }
           },
           "401": {
-            "description": "Missing or invalid token",
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -134,20 +123,13 @@
     "/api/v1/users": {
       "get": {
         "summary": "List users",
-        "description": "Superadmin: all users. Admin: only students at their university. Requires auth + admin or superadmin role.",
+        "description": "Superadmin: all users; Admin: only their university students.",
         "tags": ["Users"],
         "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": {
-            "description": "List of users",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/UserListResponse" }
-              }
-            }
-          },
+          "200": { "description": "List of users" },
           "401": {
-            "description": "Missing or invalid token",
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -155,15 +137,7 @@
             }
           },
           "403": {
-            "description": "Insufficient permissions",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
+            "description": "Admin or Superadmin required",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -174,124 +148,9 @@
       },
       "post": {
         "summary": "Create user",
-        "description": "Admin or superadmin only. Real signup is POST /auth/register.",
+        "description": "Admin or Superadmin (real signup is POST /auth/register).",
         "tags": ["Users"],
         "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["name", "email"],
-                "properties": {
-                  "name": { "type": "string", "example": "Ali Khan" },
-                  "email": { "type": "string", "format": "email", "example": "ali@example.com" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "User created",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/SingleUserResponse" }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid token",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "403": {
-            "description": "Insufficient permissions",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/users/{id}": {
-      "get": {
-        "summary": "Get user by ID",
-        "description": "Self, or superadmin (any), or admin (only students at their university).",
-        "tags": ["Users"],
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
-        "responses": {
-          "200": {
-            "description": "User found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/SingleUserResponse" }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid token",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "403": {
-            "description": "Insufficient permissions",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid id",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "summary": "Update user",
-        "description": "Self, or superadmin (any), or admin (only students at their university).",
-        "tags": ["Users"],
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
         "requestBody": {
           "required": true,
           "content": {
@@ -308,14 +167,7 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "User updated",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/SingleUserResponse" }
-              }
-            }
-          },
+          "201": { "description": "Created" },
           "400": {
             "description": "Validation error",
             "content": {
@@ -324,79 +176,80 @@
               }
             }
           },
-          "401": {
-            "description": "Missing or invalid token",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "403": {
-            "description": "Insufficient permissions",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "description": "Self, or Superadmin, or Admin (students at their uni only).",
+        "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "User" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update user",
+        "description": "Self, or Superadmin, or Admin (students at their uni only).",
+        "tags": ["Users"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" }
+                }
               }
             }
           }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
         }
       },
       "delete": {
         "summary": "Delete user",
-        "description": "Superadmin (any) or admin (only students at their university).",
+        "description": "Superadmin only (platform-level action; university admin cannot delete accounts).",
         "tags": ["Users"],
         "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
         "responses": {
-          "200": {
-            "description": "User deleted",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/DeleteResponse" }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid token",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "403": {
-            "description": "Insufficient permissions",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
         }
       }
     },
     "/api/v1/transactions/match-request": {
       "post": {
-        "summary": "Match request (create exchange + session)",
-        "description": "Creates an Exchange and a Session in one transaction, and marks the request as matched. Request must be open.",
+        "summary": "Match request",
+        "description": "Student only. Create exchange from offer + request + conversation.",
         "tags": ["Transactions"],
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -405,12 +258,11 @@
                 "type": "object",
                 "required": ["offerId", "requestId", "conversationId", "scheduledStart", "scheduledEnd"],
                 "properties": {
-                  "offerId": { "type": "integer", "example": 7 },
-                  "requestId": { "type": "integer", "example": 3 },
-                  "conversationId": { "type": "integer", "example": 3 },
-                  "scheduledStart": { "type": "string", "example": "2025-03-15 10:00:00" },
-                  "scheduledEnd": { "type": "string", "example": "2025-03-15 11:00:00" },
-                  "venue": { "type": "string", "example": "ITU Lab 1" }
+                  "offerId": { "type": "integer" },
+                  "requestId": { "type": "integer" },
+                  "conversationId": { "type": "integer" },
+                  "scheduledStart": { "type": "string" },
+                  "scheduledEnd": { "type": "string" }
                 }
               }
             }
@@ -418,37 +270,25 @@
         },
         "responses": {
           "201": {
-            "description": "Exchange and session created",
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/MatchRequestResponse" }
               }
             }
           },
-          "400": {
-            "description": "Request not found or not open",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "500": {
-            "description": "Transaction failed",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student role required" }
         }
       }
     },
     "/api/v1/transactions/paid-exchange": {
       "post": {
-        "summary": "Record paid exchange and payment",
-        "description": "Marks the exchange as paid, creates PaidExchange and Payment in one transaction.",
+        "summary": "Paid exchange",
+        "description": "Student only. Record paid exchange.",
         "tags": ["Transactions"],
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -457,48 +297,1222 @@
                 "type": "object",
                 "required": ["exchangeId", "price"],
                 "properties": {
-                  "exchangeId": { "type": "integer", "example": 111 },
-                  "price": { "type": "number", "example": 750 },
-                  "currency": { "type": "string", "example": "PKR" },
-                  "paymentMethod": { "type": "string", "example": "JazCash" }
+                  "exchangeId": { "type": "integer" },
+                  "price": { "type": "number", "minimum": 0.01 }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Paid exchange and payment recorded",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/PaidExchangeResponse" }
               }
             }
           },
-          "400": {
-            "description": "Invalid price",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "Exchange not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "500": {
-            "description": "Transaction failed",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student role required" }
+        }
+      }
+    },
+    "/api/v1/universities": {
+      "get": {
+        "summary": "List universities",
+        "description": "Public (e.g. for registration dropdown).",
+        "tags": ["Universities"],
+        "responses": {
+          "200": { "description": "List of universities" }
+        }
+      },
+      "post": {
+        "summary": "Create university",
+        "description": "Superadmin only.",
+        "tags": ["Universities"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["universityName", "address", "contactEmail"],
+                "properties": {
+                  "universityName": { "type": "string" },
+                  "address": { "type": "string" },
+                  "contactEmail": { "type": "string", "format": "email" }
+                }
               }
             }
           }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/universities/{id}": {
+      "get": {
+        "summary": "Get university by ID",
+        "description": "Public.",
+        "tags": ["Universities"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "University" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update university",
+        "description": "Superadmin only.",
+        "tags": ["Universities"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["universityName", "address", "contactEmail"],
+                "properties": {
+                  "universityName": { "type": "string" },
+                  "address": { "type": "string" },
+                  "contactEmail": { "type": "string", "format": "email" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete university",
+        "description": "Superadmin only.",
+        "tags": ["Universities"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "400": { "description": "University has students/admins" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/skill-categories": {
+      "get": {
+        "summary": "List skill categories",
+        "tags": ["Skill Categories"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create skill category",
+        "description": "Superadmin only.",
+        "tags": ["Skill Categories"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categoryName": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/skill-categories/{id}": {
+      "get": {
+        "summary": "Get skill category by ID",
+        "tags": ["Skill Categories"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update skill category",
+        "description": "Superadmin only.",
+        "tags": ["Skill Categories"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete skill category",
+        "description": "Superadmin only.",
+        "tags": ["Skill Categories"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "summary": "List skills",
+        "tags": ["Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create skill",
+        "description": "Superadmin only.",
+        "tags": ["Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categoryId": { "type": "integer" },
+                  "skillName": { "type": "string" },
+                  "difficultyLevel": { "type": "string", "enum": ["beginner", "intermediate", "advanced"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/skills/{id}": {
+      "get": {
+        "summary": "Get skill by ID",
+        "tags": ["Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update skill",
+        "description": "Superadmin only.",
+        "tags": ["Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete skill",
+        "description": "Superadmin only.",
+        "tags": ["Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/offered-skills": {
+      "get": {
+        "summary": "List offered skills",
+        "description": "Query: ?mine=true for own offers.",
+        "tags": ["Offered Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create offered skill",
+        "description": "Student only.",
+        "tags": ["Offered Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skillId": { "type": "integer" },
+                  "isPaid": { "type": "boolean" },
+                  "pricePerHour": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/offered-skills/{id}": {
+      "get": {
+        "summary": "Get offered skill by ID",
+        "tags": ["Offered Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update offered skill",
+        "description": "Student only.",
+        "tags": ["Offered Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "isPaid": { "type": "boolean" },
+                  "pricePerHour": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete offered skill",
+        "description": "Student only.",
+        "tags": ["Offered Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/requested-skills": {
+      "get": {
+        "summary": "List requested skills",
+        "description": "Query: ?mine=true for own requests.",
+        "tags": ["Requested Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create requested skill",
+        "description": "Student only.",
+        "tags": ["Requested Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skillId": { "type": "integer" },
+                  "preferredTime": { "type": "string" },
+                  "preferredMode": { "type": "string", "enum": ["Exchange", "Paid"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/requested-skills/{id}": {
+      "get": {
+        "summary": "Get requested skill by ID",
+        "tags": ["Requested Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete requested skill",
+        "description": "Student only.",
+        "tags": ["Requested Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/requested-skills/{id}/status": {
+      "patch": {
+        "summary": "Update requested skill status",
+        "description": "Student only. Body: { status }. Enum: open, matched, closed.",
+        "tags": ["Requested Skills"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["open", "matched", "closed"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/conversations": {
+      "get": {
+        "summary": "List conversations",
+        "description": "Student only.",
+        "tags": ["Conversations"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/conversations/get-or-create": {
+      "post": {
+        "summary": "Get or create conversation",
+        "description": "Student only. Body: { otherStudentId }.",
+        "tags": ["Conversations"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["otherStudentId"],
+                "properties": {
+                  "otherStudentId": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Conversation" },
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/conversations/{id}": {
+      "get": {
+        "summary": "Get conversation by ID",
+        "description": "Student only.",
+        "tags": ["Conversations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/conversations/{id}/messages": {
+      "get": {
+        "summary": "List messages in conversation",
+        "description": "Student only.",
+        "tags": ["Conversations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "List of messages" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "post": {
+        "summary": "Send message",
+        "description": "Student only. Body: { content }.",
+        "tags": ["Conversations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/exchanges": {
+      "get": {
+        "summary": "List exchanges",
+        "description": "Student: own; Admin/Superadmin: scoped.",
+        "tags": ["Exchanges"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/api/v1/exchanges/{id}": {
+      "get": {
+        "summary": "Get exchange by ID",
+        "tags": ["Exchanges"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/exchanges/{id}/status": {
+      "patch": {
+        "summary": "Update exchange status",
+        "description": "Body: { status }. Enum: pending, active, completed, cancelled. Student (participant), Admin, or Superadmin.",
+        "tags": ["Exchanges"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["pending", "active", "completed", "cancelled"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "summary": "List sessions",
+        "description": "Query: ?exchangeId=. Student only.",
+        "tags": ["Sessions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "exchangeId", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "get": {
+        "summary": "Get session by ID",
+        "tags": ["Sessions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/sessions/{id}/status": {
+      "patch": {
+        "summary": "Update session status",
+        "description": "Body: { status }. Enum: scheduled, ongoing, completed, cancelled. Student only.",
+        "tags": ["Sessions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["scheduled", "ongoing", "completed", "cancelled"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/reviews": {
+      "get": {
+        "summary": "List reviews",
+        "description": "Query: ?exchangeId= or ?revieweeId=.",
+        "tags": ["Reviews"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create review",
+        "description": "Student only. Body: revieweeId, rating (1-5), exchangeId/sessionId optional, feedback optional.",
+        "tags": ["Reviews"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["revieweeId", "rating"],
+                "properties": {
+                  "revieweeId": { "type": "integer" },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "exchangeId": { "type": "integer" },
+                  "sessionId": { "type": "integer" },
+                  "feedback": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/reviews/{id}": {
+      "get": {
+        "summary": "Get review by ID",
+        "tags": ["Reviews"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/portfolio": {
+      "get": {
+        "summary": "List portfolio items",
+        "description": "Query: ?studentId= or mine.",
+        "tags": ["Portfolio"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create portfolio item",
+        "description": "Student only.",
+        "tags": ["Portfolio"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skillId": { "type": "integer" },
+                  "description": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/portfolio/{id}": {
+      "get": {
+        "summary": "Get portfolio item by ID",
+        "tags": ["Portfolio"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update portfolio item",
+        "description": "Student only.",
+        "tags": ["Portfolio"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete portfolio item",
+        "description": "Student only.",
+        "tags": ["Portfolio"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "summary": "List payments",
+        "description": "Admin/Superadmin.",
+        "tags": ["Payments"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "get": {
+        "summary": "Get payment by ID",
+        "tags": ["Payments"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/skill-questions": {
+      "get": {
+        "summary": "List skill questions",
+        "description": "Query: ?skillId=.",
+        "tags": ["Skill Questions"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create skill question",
+        "description": "Admin or Superadmin.",
+        "tags": ["Skill Questions"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skillId": { "type": "integer" },
+                  "questionText": { "type": "string" },
+                  "correctAnswer": { "type": "string" },
+                  "points": { "type": "integer" },
+                  "options": { "type": "array" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/skill-questions/{id}": {
+      "get": {
+        "summary": "Get skill question by ID",
+        "tags": ["Skill Questions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update skill question",
+        "description": "Admin or Superadmin.",
+        "tags": ["Skill Questions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete skill question",
+        "description": "Admin or Superadmin.",
+        "tags": ["Skill Questions"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/skill-evaluations": {
+      "get": {
+        "summary": "List skill evaluations",
+        "description": "Admin: university-scoped; Superadmin: all.",
+        "tags": ["Skill Evaluations"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "post": {
+        "summary": "Create skill evaluation",
+        "description": "Admin or Superadmin. Body: studentId, skillId.",
+        "tags": ["Skill Evaluations"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["studentId", "skillId"],
+                "properties": {
+                  "studentId": { "type": "integer" },
+                  "skillId": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/skill-evaluations/{id}": {
+      "get": {
+        "summary": "Get skill evaluation by ID",
+        "tags": ["Skill Evaluations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update skill evaluation",
+        "description": "Admin or Superadmin. Body: status (pending, in-progress, submitted, graded), score, totalPossible.",
+        "tags": ["Skill Evaluations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["pending", "in-progress", "submitted", "graded"] },
+                  "score": { "type": "integer" },
+                  "totalPossible": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/admin/students": {
+      "get": {
+        "summary": "List students (university admin)",
+        "description": "Admin only: students at their university.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin required" }
+        }
+      }
+    },
+    "/api/v1/admin/students/{id}/verify": {
+      "patch": {
+        "summary": "Verify student",
+        "description": "Admin only. Body: { verified: boolean }.",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["verified"],
+                "properties": {
+                  "verified": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/admins": {
+      "get": {
+        "summary": "List admins",
+        "description": "Superadmin only.",
+        "tags": ["Admins"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "List" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" }
+        }
+      },
+      "post": {
+        "summary": "Create admin",
+        "description": "Superadmin only.",
+        "tags": ["Admins"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "fullName", "universityId"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 6 },
+                  "fullName": { "type": "string" },
+                  "universityId": { "type": "integer" },
+                  "adminLevel": { "type": "string", "enum": ["standard", "superadmin"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/admins/{id}": {
+      "get": {
+        "summary": "Get admin by ID",
+        "description": "Superadmin only.",
+        "tags": ["Admins"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Found" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "put": {
+        "summary": "Update admin",
+        "description": "Superadmin only.",
+        "tags": ["Admins"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "universityId": { "type": "integer" },
+                  "adminLevel": { "type": "string", "enum": ["standard", "superadmin"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete admin",
+        "description": "Superadmin only.",
+        "tags": ["Admins"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "summary": "Get reports",
+        "description": "Admin (university-scoped) or Superadmin (platform). Dashboard stats.",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Report data" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" }
         }
       }
     }
@@ -517,18 +1531,19 @@
         "type": "object",
         "required": ["email", "password", "fullName"],
         "properties": {
-          "email": { "type": "string", "format": "email", "example": "student@uni.edu.pk" },
-          "password": { "type": "string", "minLength": 6, "example": "secret123" },
-          "fullName": { "type": "string", "example": "Ali Khan" },
-          "phoneNumber": { "type": "string", "example": "+923001234567" }
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "minLength": 6 },
+          "fullName": { "type": "string" },
+          "phoneNumber": { "type": "string" },
+          "universityId": { "type": "integer", "minimum": 1, "description": "Optional. If provided, creates Student row so user gets role student." }
         }
       },
       "LoginRequest": {
         "type": "object",
         "required": ["email", "password"],
         "properties": {
-          "email": { "type": "string", "format": "email", "example": "student@uni.edu.pk" },
-          "password": { "type": "string", "example": "secret123" }
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string" }
         }
       },
       "AuthUser": {
@@ -544,39 +1559,54 @@
       "AuthResponse": {
         "type": "object",
         "properties": {
-          "success": { "type": "boolean", "example": true },
+          "success": { "type": "boolean" },
           "data": {
             "type": "object",
             "properties": {
               "user": { "$ref": "#/components/schemas/AuthUser" },
-              "token": { "type": "string", "description": "JWT for Authorization header" }
+              "token": { "type": "string" }
             }
           }
         }
       },
       "HealthResponse": {
         "type": "object",
-        "properties": { "success": { "type": "boolean" }, "message": { "type": "string" } }
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" }
+        }
       },
       "ErrorResponse": {
         "type": "object",
-        "properties": { "success": { "type": "boolean", "example": false }, "error": { "type": "string" } }
-      },
-      "UserListResponse": {
-        "type": "object",
-        "properties": { "success": { "type": "boolean" }, "data": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } }
-      },
-      "SingleUserResponse": {
-        "type": "object",
-        "properties": { "success": { "type": "boolean" }, "data": { "$ref": "#/components/schemas/User" } }
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string" }
+        }
       },
       "User": {
         "type": "object",
-        "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" } }
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "email": { "type": "string" }
+        }
       },
-      "DeleteResponse": {
+      "UserListResponse": {
         "type": "object",
-        "properties": { "success": { "type": "boolean" }, "data": { "type": "object", "properties": { "message": { "type": "string" } } } }
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/User" }
+          }
+        }
+      },
+      "SingleUserResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": { "$ref": "#/components/schemas/User" }
+        }
       },
       "MatchRequestResponse": {
         "type": "object",
@@ -584,7 +1614,10 @@
           "success": { "type": "boolean" },
           "data": {
             "type": "object",
-            "properties": { "exchangeId": { "type": "integer" }, "sessionId": { "type": "integer" } }
+            "properties": {
+              "exchangeId": { "type": "integer" },
+              "sessionId": { "type": "integer" }
+            }
           }
         }
       },
@@ -594,7 +1627,9 @@
           "success": { "type": "boolean" },
           "data": {
             "type": "object",
-            "properties": { "message": { "type": "string" } }
+            "properties": {
+              "message": { "type": "string" }
+            }
           }
         }
       }

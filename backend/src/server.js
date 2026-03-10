@@ -1,8 +1,4 @@
-/**
- * server.js
- * Entry point. Loads environment variables, imports the Express app,
- * and starts the HTTP server. Use "npm run dev" for development (nodemon).
- */
+require('dotenv').config();
 
 const path = require('path');
 // Load .env from backend folder (so it works even if you run from project root)
@@ -16,5 +12,5 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   // Quick check: DB env loaded? (password not printed)
   const dbSet = process.env.DB_HOST && process.env.DB_NAME;
-  console.log(`DB config: ${dbSet ? 'OK (' + process.env.DB_USER + '@' + process.env.DB_HOST + ')' : 'missing .env?'}`);
+  console.log(`DB config: ${dbSet ? 'OK (' + process.env.DB_USER + '@' + process.env.DB_HOST + ')' : 'not set (add DB_HOST, DB_NAME, DB_USER to .env for database)'}`);
 });

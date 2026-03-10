@@ -23,6 +23,7 @@ const registerValidators = [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('fullName').trim().notEmpty().withMessage('Full name is required'),
   body('phoneNumber').optional().trim(),
+  body('universityId').optional().isInt({ min: 1 }).withMessage('universityId must be a positive integer'),
 ];
 
 const loginValidators = [

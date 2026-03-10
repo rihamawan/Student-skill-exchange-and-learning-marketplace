@@ -16,8 +16,8 @@ async function matchRequest(req, res) {
     );
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    if (err.code === 'REQUEST_NOT_OPEN') {
-      return res.status(400).json({ success: false, error: err.message });
+    if (err.code === 'REQUEST_NOT_OPEN' || err.code === 'OFFER_NOT_FOUND' || err.code === 'CONVERSATION_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: err.message });
     }
     console.error('transactions.matchRequest', err);
     res.status(500).json({ success: false, error: 'Transaction failed' });

@@ -27,6 +27,7 @@ async function withTransaction(callback) {
     return result;
   } catch (err) {
     await connection.rollback();
+    console.error('[Transaction] ROLLBACK —', err.message || err.code || err);
     throw err;
   } finally {
     connection.release();

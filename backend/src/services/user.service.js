@@ -80,6 +80,19 @@ async function getUsersByUniversity(universityId) {
   return rows;
 }
 
+/** Students at university with IsAdminVerified (for admin list). */
+async function getStudentsByUniversity(universityId) {
+  const [rows] = await getPool().query(
+    `SELECT u.UserID, u.Email, u.FullName, s.IsAdminVerified
+     FROM User u
+     INNER JOIN Student s ON s.StudentID = u.UserID
+     WHERE s.UniversityID = ?
+     ORDER BY u.UserID`,
+    [universityId]
+  );
+  return rows;
+}
+
 /**
  * True if userId is a student at the given university (for admin scope check).
  * @param {number} userId
@@ -108,6 +121,42 @@ async function createUser(data) {
   );
   const created = await getUserById(result.insertId);
   return created;
+}
+
+/**
+ * Create a Student row for an existing user (so they get role 'student' and can use student-only routes).
+ * @param {number} userId - UserID (will be StudentID)
+ * @param {number} universityId - University.UniversityID
+ * @returns {Promise<void>}
+ */
+async function createStudent(userId, universityId) {
+  await getPool().query(
+    'INSERT INTO Student (StudentID, UniversityID) VALUES (?, ?)',
+    [userId, universityId]
+  );
+}
+
+/**
+ * Set Student.IsAdminVerified (admin approve/reject). Caller must ensure student is at their university.
+ * @param {number} studentId
+ * @param {boolean} verified
+ * @returns {Promise<boolean>} true if updated
+ */
+async function updateStudentVerified(studentId, verified) {
+  const [result] = await getPool().query(
+    'UPDATE Student SET IsAdminVerified = ? WHERE StudentID = ?',
+    [verified ? 1 : 0, studentId]
+  );
+  return result.affectedRows > 0;
+}
+
+/**
+ * Set User.LastLogin to now (e.g. on successful login).
+ * @param {number} userId
+ * @returns {Promise<void>}
+ */
+async function updateLastLogin(userId) {
+  await getPool().query('UPDATE User SET LastLogin = NOW() WHERE UserID = ?', [userId]);
 }
 
 /**
@@ -143,8 +192,12 @@ module.exports = {
   getUserById,
   getAllUsers,
   getUsersByUniversity,
+  getStudentsByUniversity,
   isStudentAtUniversity,
   createUser,
+  createStudent,
+  updateStudentVerified,
+  updateLastLogin,
   updateUser,
   deleteUser,
 };

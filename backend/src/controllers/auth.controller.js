@@ -14,18 +14,24 @@ function toAuthUser(row) {
 }
 
 /**
- * POST /auth/register - create account, return user + JWT
+ * POST /auth/register - create account, return user + JWT.
+ * If body.universityId is provided, also creates a Student row so the user gets role 'student'
+ * and can use student-only routes (e.g. create offered skills).
  */
 async function register(req, res) {
   try {
-    const { email, password, fullName, phoneNumber } = req.body;
+    const { email, password, fullName, phoneNumber, universityId } = req.body;
     const passwordHash = await authService.hashPassword(password);
-    const created = await userService.createUser({
+    let created = await userService.createUser({
       email,
       passwordHash,
       fullName,
       phoneNumber: phoneNumber || null,
     });
+    if (universityId != null) {
+      await userService.createStudent(created.UserID, Number(universityId));
+      created = await userService.getUserById(created.UserID);
+    }
     const user = toAuthUser(created);
     const token = authService.signToken({
       userId: created.UserID,
@@ -36,6 +42,9 @@ async function register(req, res) {
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ success: false, error: 'Email already in use' });
+    }
+    if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+      return res.status(400).json({ success: false, error: 'Invalid universityId' });
     }
     console.error('auth.register', err);
     res.status(500).json({ success: false, error: 'Registration failed' });
@@ -56,6 +65,7 @@ async function login(req, res) {
     if (!match) {
       return res.status(401).json({ success: false, error: 'Invalid email or password' });
     }
+    await userService.updateLastLogin(userRow.UserID);
     const user = toAuthUser(userRow);
     const token = authService.signToken({
       userId: userRow.UserID,

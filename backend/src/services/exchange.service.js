@@ -1,9 +1,10 @@
 /**
  * src/services/exchange.service.js
  * Two transaction scenarios (Phase 2 requirement): raw SQL inside withTransaction.
- * BEGIN → run steps → COMMIT, or ROLLBACK on any error.
+ * Also: get by id, list by student, update status.
  */
 
+const { getPool } = require('./db');
 const { withTransaction } = require('./transactions');
 
 /**
@@ -30,6 +31,26 @@ async function matchRequestCreateExchangeSession(params) {
   } = params;
 
   return withTransaction(async (conn) => {
+    const [offerRows] = await conn.query(
+      'SELECT 1 FROM OfferedSkill WHERE OfferID = ?',
+      [offerId]
+    );
+    if (!offerRows || offerRows.length === 0) {
+      const err = new Error('Offer not found.');
+      err.code = 'OFFER_NOT_FOUND';
+      throw err;
+    }
+
+    const [convRows] = await conn.query(
+      'SELECT 1 FROM Conversation WHERE ConversationID = ?',
+      [conversationId]
+    );
+    if (!convRows || convRows.length === 0) {
+      const err = new Error('Conversation not found.');
+      err.code = 'CONVERSATION_NOT_FOUND';
+      throw err;
+    }
+
     const [requestRows] = await conn.query(
       'SELECT 1 FROM RequestedSkill WHERE RequestID = ? AND Status = ?',
       [requestId, 'open']
@@ -120,7 +141,136 @@ async function createPaidExchangeWithPayment(params) {
   });
 }
 
+/**
+ * Get exchange by id with offer/request/skill/conversation info.
+ */
+async function getById(exchangeId) {
+  const [rows] = await getPool().query(
+    `SELECT e.ExchangeID, e.OfferID, e.RequestID, e.ConversationID, e.ExchangeType, e.Status, e.CreatedAt,
+            os.StudentID AS OffererStudentID, rs.StudentID AS RequesterStudentID,
+            sk.SkillName, u_offer.FullName AS OffererName, u_req.FullName AS RequesterName
+     FROM Exchange e
+     JOIN OfferedSkill os ON os.OfferID = e.OfferID
+     LEFT JOIN RequestedSkill rs ON rs.RequestID = e.RequestID
+     JOIN Skill sk ON sk.SkillID = os.SkillID
+     JOIN Student so ON so.StudentID = os.StudentID
+     JOIN User u_offer ON u_offer.UserID = so.StudentID
+     LEFT JOIN Student sr ON sr.StudentID = rs.StudentID
+     LEFT JOIN User u_req ON u_req.UserID = sr.StudentID
+     WHERE e.ExchangeID = ?`,
+    [exchangeId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * List exchanges where the student is either offerer or requester.
+ */
+async function getByStudent(studentId) {
+  const [rows] = await getPool().query(
+    `SELECT e.ExchangeID, e.OfferID, e.RequestID, e.ConversationID, e.ExchangeType, e.Status, e.CreatedAt,
+            sk.SkillName, u_offer.FullName AS OffererName, u_req.FullName AS RequesterName
+     FROM Exchange e
+     JOIN OfferedSkill os ON os.OfferID = e.OfferID
+     LEFT JOIN RequestedSkill rs ON rs.RequestID = e.RequestID
+     JOIN Skill sk ON sk.SkillID = os.SkillID
+     JOIN Student so ON so.StudentID = os.StudentID
+     JOIN User u_offer ON u_offer.UserID = so.StudentID
+     LEFT JOIN Student sr ON sr.StudentID = rs.StudentID
+     LEFT JOIN User u_req ON u_req.UserID = sr.StudentID
+     WHERE os.StudentID = ? OR rs.StudentID = ?
+     ORDER BY e.CreatedAt DESC`,
+    [studentId, studentId]
+  );
+  return rows;
+}
+
+/**
+ * Update exchange status. Allowed: pending, active, completed, cancelled.
+ */
+async function updateStatus(exchangeId, status) {
+  const allowed = ['pending', 'active', 'completed', 'cancelled'];
+  if (!allowed.includes(status)) return null;
+  const [result] = await getPool().query(
+    'UPDATE Exchange SET Status = ? WHERE ExchangeID = ?',
+    [status, exchangeId]
+  );
+  if (result.affectedRows === 0) return null;
+  return getById(exchangeId);
+}
+
+/** True if student is offerer or requester of this exchange */
+async function isParticipant(exchangeId, studentId) {
+  const [rows] = await getPool().query(
+    `SELECT 1 FROM Exchange e
+     JOIN OfferedSkill os ON os.OfferID = e.OfferID
+     LEFT JOIN RequestedSkill rs ON rs.RequestID = e.RequestID
+     WHERE e.ExchangeID = ? AND (os.StudentID = ? OR rs.StudentID = ?)`,
+    [exchangeId, studentId, studentId]
+  );
+  return rows.length > 0;
+}
+
+/** True if exchange involves at least one student at the given university (offerer or requester). */
+async function isExchangeInUniversity(exchangeId, universityId) {
+  const [rows] = await getPool().query(
+    `SELECT 1 FROM Exchange e
+     JOIN OfferedSkill os ON os.OfferID = e.OfferID
+     JOIN Student so ON so.StudentID = os.StudentID
+     LEFT JOIN RequestedSkill rs ON rs.RequestID = e.RequestID
+     LEFT JOIN Student sr ON sr.StudentID = rs.StudentID
+     WHERE e.ExchangeID = ? AND (so.UniversityID = ? OR sr.UniversityID = ?)`,
+    [exchangeId, universityId, universityId]
+  );
+  return rows.length > 0;
+}
+
+/** All exchanges (for superadmin). Same shape as getByStudent. */
+async function getAll() {
+  const [rows] = await getPool().query(
+    `SELECT e.ExchangeID, e.OfferID, e.RequestID, e.ConversationID, e.ExchangeType, e.Status, e.CreatedAt,
+            sk.SkillName, u_offer.FullName AS OffererName, u_req.FullName AS RequesterName
+     FROM Exchange e
+     JOIN OfferedSkill os ON os.OfferID = e.OfferID
+     LEFT JOIN RequestedSkill rs ON rs.RequestID = e.RequestID
+     JOIN Skill sk ON sk.SkillID = os.SkillID
+     JOIN Student so ON so.StudentID = os.StudentID
+     JOIN User u_offer ON u_offer.UserID = so.StudentID
+     LEFT JOIN Student sr ON sr.StudentID = rs.StudentID
+     LEFT JOIN User u_req ON u_req.UserID = sr.StudentID
+     ORDER BY e.CreatedAt DESC`
+  );
+  return rows;
+}
+
+/** Exchanges where offerer or requester is at the given university (admin uni-scoped). */
+async function getByUniversity(universityId) {
+  const [rows] = await getPool().query(
+    `SELECT e.ExchangeID, e.OfferID, e.RequestID, e.ConversationID, e.ExchangeType, e.Status, e.CreatedAt,
+            sk.SkillName, u_offer.FullName AS OffererName, u_req.FullName AS RequesterName
+     FROM Exchange e
+     JOIN OfferedSkill os ON os.OfferID = e.OfferID
+     LEFT JOIN RequestedSkill rs ON rs.RequestID = e.RequestID
+     JOIN Skill sk ON sk.SkillID = os.SkillID
+     JOIN Student so ON so.StudentID = os.StudentID
+     JOIN User u_offer ON u_offer.UserID = so.StudentID
+     LEFT JOIN Student sr ON sr.StudentID = rs.StudentID
+     LEFT JOIN User u_req ON u_req.UserID = sr.StudentID
+     WHERE so.UniversityID = ? OR sr.UniversityID = ?
+     ORDER BY e.CreatedAt DESC`,
+    [universityId, universityId]
+  );
+  return rows;
+}
+
 module.exports = {
   matchRequestCreateExchangeSession,
   createPaidExchangeWithPayment,
+  getById,
+  getByStudent,
+  getByUniversity,
+  getAll,
+  updateStatus,
+  isParticipant,
+  isExchangeInUniversity,
 };

@@ -1,0 +1,51 @@
+### --- Rollback 1: paid-exchange — non-existent exchange (Exchange not found.) ---
+# @name rollback1
+POST {{baseUrl}}/api/v1/transactions/paid-exchange
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "exchangeId": 999999,
+  "price": 100
+}
+
+
+### --- Rollback 2: match-request — non-existent request (Request not found or not open.) ---
+# @name rollback2
+POST {{baseUrl}}/api/v1/transactions/match-request
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "offerId": 1,
+  "requestId": 999999,
+  "conversationId": 1,
+  "scheduledStart": "2025-03-15 10:00:00",
+  "scheduledEnd": "2025-03-15 11:00:00"
+}
+
+### --- Rollback 3: "Offer not found." (match-request, valid open requestId 1 but non-existent offerId) ---
+POST {{baseUrl}}/api/v1/transactions/match-request
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "offerId": 999999,
+  "requestId": 1,
+  "conversationId": 1,
+  "scheduledStart": "2025-03-15 10:00:00",
+  "scheduledEnd": "2025-03-15 11:00:00"
+}
+
+### --- Rollback 4: "Conversation not found." (match-request, valid requestId 1 & offerId 1 but non-existent conversationId) ---
+POST {{baseUrl}}/api/v1/transactions/match-request
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "offerId": 1,
+  "requestId": 1,
+  "conversationId": 999999,
+  "scheduledStart": "2025-03-15 10:00:00",
+  "scheduledEnd": "2025-03-15 11:00:00"
+}

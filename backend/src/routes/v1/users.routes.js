@@ -57,7 +57,7 @@ router.put(
   usersController.update
 );
 
-// DELETE /api/v1/users/:id - superadmin (any), or admin (only students at their uni)
-router.delete('/:id', requireAuth, requireRoles('admin', 'superadmin'), idParamValidator, handleValidation, requireSelfOrSuperadminOrAdminForUni, usersController.remove);
+// DELETE /api/v1/users/:id - superadmin only (platform-level action; university admin cannot delete accounts)
+router.delete('/:id', requireAuth, requireRoles('superadmin'), idParamValidator, handleValidation, usersController.remove);
 
 module.exports = router;

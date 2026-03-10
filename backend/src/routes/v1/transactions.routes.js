@@ -1,11 +1,13 @@
 /**
  * src/routes/v1/transactions.routes.js
- * Two transaction scenario endpoints (Phase 2). No auth for now.
+ * Two transaction scenario endpoints (Phase 2). Require auth + student role.
  */
 
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const transactionsController = require('../../controllers/transactions.controller');
+const { requireAuth } = require('../../middleware/auth.middleware');
+const { requireRoles } = require('../../middleware/rbac.middleware');
 
 const router = express.Router();
 
@@ -33,17 +35,21 @@ const paidExchangeValidators = [
   body('price').isFloat({ min: 0.01 }).withMessage('price must be a positive number'),
 ];
 
-// POST /api/v1/transactions/match-request
+// POST /api/v1/transactions/match-request (student only)
 router.post(
   '/match-request',
+  requireAuth,
+  requireRoles('student'),
   matchRequestValidators,
   handleValidation,
   transactionsController.matchRequest
 );
 
-// POST /api/v1/transactions/paid-exchange
+// POST /api/v1/transactions/paid-exchange (student only)
 router.post(
   '/paid-exchange',
+  requireAuth,
+  requireRoles('student'),
   paidExchangeValidators,
   handleValidation,
   transactionsController.paidExchange
