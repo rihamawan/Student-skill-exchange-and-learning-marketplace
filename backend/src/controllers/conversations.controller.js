@@ -5,6 +5,7 @@
 
 const conversationService = require('../services/conversation.service');
 const messageService = require('../services/message.service');
+const { roomForConversation } = require('../socket');
 
 function getStudentId(req) {
   return req.user?.role === 'student' ? req.user.UserID : null;
@@ -123,6 +124,10 @@ async function sendMessage(req, res) {
       return res.status(400).json({ success: false, error: 'Content is required' });
     }
     const msg = await messageService.send(conversationId, studentId, content);
+    const io = req.app.get('io');
+    if (io && msg) {
+      io.to(roomForConversation(conversationId)).emit('message', toApiMsg(msg));
+    }
     res.status(201).json({ success: true, data: toApiMsg(msg) });
   } catch (err) {
     console.error('conversations.sendMessage', err);

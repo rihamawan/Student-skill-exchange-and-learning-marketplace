@@ -25,8 +25,11 @@ async function send(conversationId, senderId, content) {
     [conversationId, senderId, content]
   );
   const [rows] = await getPool().query(
-    `SELECT m.MessageID, m.ConversationID, m.SenderID, m.Content, m.IsRead, m.CreatedAt
-     FROM Message m WHERE m.MessageID = ?`,
+    `SELECT m.MessageID, m.ConversationID, m.SenderID, m.Content, m.IsRead, m.CreatedAt,
+            u.FullName AS SenderName
+     FROM Message m
+     JOIN User u ON u.UserID = m.SenderID
+     WHERE m.MessageID = ?`,
     [result.insertId]
   );
   return rows[0] ?? null;

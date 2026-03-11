@@ -19,7 +19,7 @@ app.use(express.json());
 // Enable CORS for frontend requests
 app.use(cors());
 
-// Swagger UI (API docs) at GET /api-docs — optional, Member 3
+// Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 // Mount all v1 routes under /api/v1

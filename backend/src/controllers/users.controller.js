@@ -6,7 +6,7 @@
 
 const userService = require('../services/user.service');
 
-/** Placeholder hash when creating via POST /users (no password in body). Real register uses auth (Member 2). */
+/** Placeholder hash when creating via POST /users (no password in body). */
 const PLACEHOLDER_PASSWORD_HASH = '$2b$10$placeholder.from.users.api';
 
 /** Map DB row to API response shape */

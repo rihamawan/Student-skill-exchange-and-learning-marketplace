@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Student Skill Exchange API",
-    "description": "Backend API for the Skill Exchange platform. Auth (register/login), Users CRUD with RBAC, transactions (match-request, paid-exchange), universities, skills, exchanges, sessions, reviews, portfolio, payments. Protected routes require Authorization: Bearer <JWT>.",
+    "description": "Backend API for the Skill Exchange platform. Auth (register/login), Users CRUD with RBAC, transactions (match-request, paid-exchange), universities, skills, exchanges, sessions, reviews, portfolio, payments. Protected routes require Authorization: Bearer <JWT>.\n\n## Live Chat (real-time)\n- **Send message:** REST only — POST /api/v1/conversations/{id}/messages with body { \"content\": \"...\" }. After saving, the server emits the same message over Socket.io to the conversation room so the other participant sees it in real time.\n- **Socket.io:** Same origin as API (e.g. http://localhost:5000). Auth: handshake with auth.token = 'Bearer <JWT>' or query token=<JWT>. Events: emit 'join_conversation' with { conversationId } to join (student, participant only); emit 'leave_conversation' with { conversationId }; listen 'message' for new messages (payload: id, conversationId, senderId, senderName, content, isRead, createdAt). See backend/docs/LIVE-CHAT.md for testing.",
     "version": "1.0.0"
   },
   "servers": [
@@ -781,11 +781,27 @@
     "/api/v1/conversations": {
       "get": {
         "summary": "List conversations",
-        "description": "Student only.",
+        "description": "Student only. Returns conversations where the current user is a participant.",
         "tags": ["Conversations"],
         "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": { "description": "List" },
+          "200": {
+            "description": "List of conversations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Conversation" }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Student required" }
         }
@@ -812,9 +828,35 @@
           }
         },
         "responses": {
-          "200": { "description": "Conversation" },
-          "201": { "description": "Created" },
-          "400": { "description": "Validation error" },
+          "200": {
+            "description": "Existing conversation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Conversation" }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "New conversation created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Conversation" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error (e.g. invalid otherStudentId)" },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Student required" }
         }
@@ -823,14 +865,27 @@
     "/api/v1/conversations/{id}": {
       "get": {
         "summary": "Get conversation by ID",
-        "description": "Student only.",
+        "description": "Student only. Caller must be a participant.",
         "tags": ["Conversations"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
         ],
         "responses": {
-          "200": { "description": "Found" },
+          "200": {
+            "description": "Conversation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Conversation" }
+                  }
+                }
+              }
+            }
+          },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Student required" },
           "404": { "description": "Not found" }
@@ -840,14 +895,31 @@
     "/api/v1/conversations/{id}/messages": {
       "get": {
         "summary": "List messages in conversation",
-        "description": "Student only.",
+        "description": "Student only. Query: limit (default 100, max 200). Caller must be a participant.",
         "tags": ["Conversations"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "default": 100 } }
         ],
         "responses": {
-          "200": { "description": "List of messages" },
+          "200": {
+            "description": "List of messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Message" }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Student required" },
           "404": { "description": "Not found" }
@@ -855,7 +927,7 @@
       },
       "post": {
         "summary": "Send message",
-        "description": "Student only. Body: { content }.",
+        "description": "Student only. Body: { content }. Message is saved and then emitted over Socket.io to the conversation room so the other participant receives it in real time (listen for 'message' event).",
         "tags": ["Conversations"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -869,17 +941,30 @@
                 "type": "object",
                 "required": ["content"],
                 "properties": {
-                  "content": { "type": "string" }
+                  "content": { "type": "string", "minLength": 1 }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Created" },
-          "400": { "description": "Validation error" },
+          "201": {
+            "description": "Message created; same payload is emitted via Socket.io to the conversation room.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Message" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error (e.g. empty content)" },
           "401": { "description": "Unauthorized" },
-          "403": { "description": "Student required" },
+          "403": { "description": "Student required or not a participant" },
           "404": { "description": "Not found" }
         }
       }
@@ -1631,6 +1716,27 @@
               "message": { "type": "string" }
             }
           }
+        }
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "ConversationID" },
+          "student1Id": { "type": "integer" },
+          "student2Id": { "type": "integer" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "MessageID" },
+          "conversationId": { "type": "integer" },
+          "senderId": { "type": "integer" },
+          "senderName": { "type": "string" },
+          "content": { "type": "string" },
+          "isRead": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
         }
       }
     }

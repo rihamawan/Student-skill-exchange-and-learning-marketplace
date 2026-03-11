@@ -1,6 +1,6 @@
 /**
  * src/services/user.service.js
- * Raw SQL for User table. Used by auth (Member 2) and users controller (Part 4).
+ * Raw SQL for User table..
  * All queries are parameterized (no SQL injection).
  */
 

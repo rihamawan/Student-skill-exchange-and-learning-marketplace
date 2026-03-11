@@ -19,14 +19,26 @@ The database supports all of this with proper schema, constraints, triggers, ind
 
 | Folder / file | Description |
 |---------------|-------------|
+| **backend/**  | Node.js/Express API (Phase 2): REST, JWT auth, RBAC, transactions, Socket.io. See setup below. |
 | **database/** | Schema, seed data, performance analysis, and ACID transaction examples. See [database/README.md](database/README.md). |
-| **docs/**     | ER diagrams, schema documentation, and ACID documentation. See [docs/README.md](docs/README.md). |
+| **docs/**     | ER diagrams, schema documentation. See [docs/README.md](docs/README.md). |
+| **media/**    | Logs for transaction rollback (Phase 2). |
+
+---
+
+## Backend setup and run (Phase 2)
+
+1. **Database:** Create DB and load schema/seed (see Quick start below).
+2. **Env:** Copy `backend/.env.example` to `backend/.env` and set `DB_*`, `JWT_SECRET`.
+3. **Install:** `cd backend && npm install`
+4. **Run:** `npm run dev` (or `node src/server.js`). API: `http://localhost:5000`. Swagger UI: `http://localhost:5000/api-docs`.
+5. **API spec:** OpenAPI 3.0 spec is in `backend/src/openapi.json`.
 
 ---
 
 ## Tech stack (database phase)
 
-- **DBMS:** MySQL (InnoDB)
+- **DBMS:** MySQL
 - **Schema:** Tables, constraints, indexes, triggers, views
 - **Data:** Seed data with referential integrity (100+ records)
 - **Performance:** Queries with EXPLAIN / EXPLAIN ANALYZE (before and after indexing)
