@@ -38,6 +38,11 @@ export function RegisterPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!universityId) {
+      setError('Please select a university to register as a student.');
+      setSubmitting(false);
+      return;
+    }
     setError('');
     setSubmitting(true);
     try {

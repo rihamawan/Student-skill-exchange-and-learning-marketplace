@@ -1,19 +1,43 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { dashboardPathForRole } from '../lib/roles';
+import { dashboardPathForRole, isValidRole } from '../lib/roles';
 import { clearStoredAuth, getStoredToken, getStoredUser, setStoredAuth } from '../lib/authStorage';
 
 const AuthContext = createContext(null);
 
-// If there is no token, we must ignore any previously stored user.
-// Otherwise the UI can redirect based on stale `user.role` even though auth is not valid.
+function decodeJwtPayload(token) {
+  // JWT is base64url-encoded: header.payload.signature
+  // We only need payload.role for RBAC correctness.
+  try {
+    const parts = String(token).split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+// If there is a token but role is missing/invalid (e.g. user registered without a Student row),
+// we clear auth so the UI does not redirect into a loop.
 const tokenAtLoad = getStoredToken();
-const initialUser = tokenAtLoad ? getStoredUser() : null;
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => initialUser);
+  const [user, setUser] = useState(() => {
+    if (!tokenAtLoad) return null;
+    const storedUser = getStoredUser();
+    const payload = decodeJwtPayload(tokenAtLoad);
+    const roleFromToken = payload?.role ?? storedUser?.role;
+    if (!isValidRole(roleFromToken)) {
+      clearStoredAuth();
+      return null;
+    }
+    return storedUser ? { ...storedUser, role: roleFromToken } : { role: roleFromToken };
+  });
   const [ready, setReady] = useState(() => !tokenAtLoad);
 
   useEffect(() => {
@@ -21,6 +45,20 @@ export function AuthProvider({ children }) {
     if (!token) {
       return;
     }
+
+    // Validate role from JWT payload first to avoid any stale localStorage causing redirects.
+    const payload = decodeJwtPayload(token);
+    const roleFromToken = payload?.role;
+    if (!isValidRole(roleFromToken)) {
+      clearStoredAuth();
+      // Avoid sync state update warnings; do it async.
+      setTimeout(() => {
+        setUser(null);
+        setReady(true);
+      }, 0);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       try {

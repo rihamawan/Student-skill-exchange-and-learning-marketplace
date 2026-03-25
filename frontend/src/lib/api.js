@@ -1,4 +1,5 @@
-import { clearStoredAuth, getStoredToken } from './authStorage';
+import { clearStoredAuth, getStoredToken, getStoredUser } from './authStorage';
+import { dashboardPathForRole, isValidRole } from './roles';
 
 const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
@@ -35,7 +36,10 @@ export async function api(path, options = {}) {
   }
 
   if (!skipAuthRedirect && res.status === 403) {
-    window.location.assign(`${window.location.origin}/forbidden`);
+    const storedUser = getStoredUser();
+    const role = storedUser?.role;
+    const target = isValidRole(role) ? dashboardPathForRole(role) : '/login';
+    window.location.assign(`${window.location.origin}${target}`);
     throw new Error('Insufficient permissions');
   }
 
