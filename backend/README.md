@@ -55,7 +55,7 @@ See the main [README](../README.md) and [database/README](../database/README.md)
 
 ## How to run
 
-**Development (server restarts when you change code):**
+**Development (server restarts when you change code — uses Node’s built-in `--watch`, needs Node 18+):**
 
 ```bash
 npm run dev

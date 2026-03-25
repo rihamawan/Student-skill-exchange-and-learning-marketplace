@@ -200,7 +200,7 @@ INSERT INTO Conversation (Student1ID, Student2ID) VALUES
 (23, 31), (23, 32), (23, 33), (23, 34), (23, 35), (23, 36), (23, 37), (23, 38), (23, 39), (23, 40),
 (132, 133), (133, 134), (134, 135), (135, 136), (136, 137), (137, 138), (138, 139), (139, 140), (140, 141), (22, 141);
 
--- 11. Exchange (120 rows: 100+); 1-110 paid, 111-120 free. All exchanges have a conversation (101-110 for free).
+-- 11. Exchange (120 rows: 100+); 1-110 paid, 111-120 skill-swap (ExchangeType must be 'Exchange' or 'paid' per schema CHECK).
 INSERT INTO Exchange (OfferID, RequestID, ConversationID, ExchangeType, Status) VALUES
 (1, 2, 1, 'paid', 'completed'), (2, 3, 2, 'paid', 'completed'), (3, 4, 3, 'paid', 'completed'), (4, 5, 4, 'paid', 'completed'), (5, 6, 5, 'paid', 'completed'), (6, 7, 6, 'paid', 'completed'), (7, 8, 7, 'paid', 'completed'), (8, 9, 8, 'paid', 'completed'), (9, 10, 9, 'paid', 'completed'), (10, 11, 10, 'paid', 'completed'),
 (11, 12, 11, 'paid', 'completed'), (12, 13, 12, 'paid', 'completed'), (13, 14, 13, 'paid', 'completed'), (14, 15, 14, 'paid', 'completed'), (15, 16, 15, 'paid', 'completed'), (16, 17, 16, 'paid', 'completed'), (17, 18, 17, 'paid', 'completed'), (18, 19, 18, 'paid', 'completed'), (19, 20, 19, 'paid', 'completed'), (20, 21, 20, 'paid', 'completed'),
@@ -213,7 +213,7 @@ INSERT INTO Exchange (OfferID, RequestID, ConversationID, ExchangeType, Status) 
 (81, 82, 81, 'paid', 'completed'), (82, 83, 82, 'paid', 'completed'), (83, 84, 83, 'paid', 'completed'), (84, 85, 84, 'paid', 'completed'), (85, 86, 85, 'paid', 'completed'), (86, 87, 86, 'paid', 'completed'), (87, 88, 87, 'paid', 'completed'), (88, 89, 88, 'paid', 'completed'), (89, 90, 89, 'paid', 'completed'), (90, 91, 90, 'paid', 'completed'),
 (91, 92, 91, 'paid', 'completed'), (92, 93, 92, 'paid', 'completed'), (93, 94, 93, 'paid', 'completed'), (94, 95, 94, 'paid', 'completed'), (95, 96, 95, 'paid', 'completed'), (96, 97, 96, 'paid', 'completed'), (97, 98, 97, 'paid', 'completed'), (98, 99, 98, 'paid', 'completed'), (99, 100, 99, 'paid', 'completed'), (100, 101, 100, 'paid', 'completed'),
 (101, 102, 1, 'paid', 'completed'), (102, 103, 2, 'paid', 'completed'), (103, 104, 3, 'paid', 'completed'), (104, 105, 4, 'paid', 'completed'), (105, 106, 5, 'paid', 'completed'), (106, 107, 6, 'paid', 'completed'), (107, 108, 7, 'paid', 'completed'), (108, 109, 8, 'paid', 'completed'), (109, 110, 9, 'paid', 'completed'), (110, 111, 10, 'paid', 'completed'),
-(111, NULL, 101, 'free', 'active'), (112, NULL, 102, 'free', 'pending'), (113, NULL, 103, 'free', 'active'), (114, NULL, 104, 'free', 'cancelled'), (115, NULL, 105, 'free', 'pending'), (116, NULL, 106, 'free', 'active'), (117, NULL, 107, 'free', 'pending'), (118, NULL, 108, 'free', 'active'), (119, NULL, 109, 'free', 'pending'), (120, NULL, 110, 'free', 'active');
+(111, NULL, 101, 'Exchange', 'active'), (112, NULL, 102, 'Exchange', 'pending'), (113, NULL, 103, 'Exchange', 'active'), (114, NULL, 104, 'Exchange', 'cancelled'), (115, NULL, 105, 'Exchange', 'pending'), (116, NULL, 106, 'Exchange', 'active'), (117, NULL, 107, 'Exchange', 'pending'), (118, NULL, 108, 'Exchange', 'active'), (119, NULL, 109, 'Exchange', 'pending'), (120, NULL, 110, 'Exchange', 'active');
 
 -- 12. PaidExchange
 INSERT INTO PaidExchange (ExchangeID, Price, Currency) VALUES
