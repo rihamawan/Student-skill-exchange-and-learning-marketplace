@@ -8,10 +8,12 @@ export function RequireRole({ roles, children }) {
 
   if (!allowed.includes(role)) {
     const fallback = dashboardPathForRole(user?.role);
-    if (fallback && fallback !== '/login') {
-      return <Navigate to={fallback} replace />;
+    if (fallback) {
+      // If we know the role, redirect to the correct dashboard.
+      // If role is missing/unknown, go to login.
+      return <Navigate to={fallback} replace={false} />;
     }
-    return <Navigate to="/forbidden" replace />;
+    return <Navigate to="/forbidden" replace={false} />;
   }
 
   return children;

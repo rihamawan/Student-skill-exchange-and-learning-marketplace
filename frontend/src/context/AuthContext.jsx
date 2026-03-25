@@ -6,10 +6,15 @@ import { clearStoredAuth, getStoredToken, getStoredUser, setStoredAuth } from '.
 
 const AuthContext = createContext(null);
 
+// If there is no token, we must ignore any previously stored user.
+// Otherwise the UI can redirect based on stale `user.role` even though auth is not valid.
+const tokenAtLoad = getStoredToken();
+const initialUser = tokenAtLoad ? getStoredUser() : null;
+
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => getStoredUser());
-  const [ready, setReady] = useState(() => !getStoredToken());
+  const [user, setUser] = useState(() => initialUser);
+  const [ready, setReady] = useState(() => !tokenAtLoad);
 
   useEffect(() => {
     const token = getStoredToken();

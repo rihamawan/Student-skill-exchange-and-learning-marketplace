@@ -14,7 +14,8 @@ export function RequireAuth({ children }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Do not replace so the browser Back key can return to the previous page.
+    return <Navigate to="/login" state={{ from: location }} replace={false} />;
   }
 
   return children;

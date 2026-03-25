@@ -3,5 +3,14 @@ export function dashboardPathForRole(role) {
   if (r === 'admin') return '/admin';
   if (r === 'superadmin') return '/superadmin';
   if (r === 'student') return '/student';
-  return '/forbidden';
+  // If role is missing/unknown (e.g. bad token or registering without a Student row),
+  // send the user to login instead of creating a forbidden-loop.
+  return '/login';
+}
+
+export const VALID_ROLES = ['student', 'admin', 'superadmin'];
+
+export function isValidRole(role) {
+  const r = String(role || '').toLowerCase();
+  return VALID_ROLES.includes(r);
 }
