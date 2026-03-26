@@ -33,6 +33,12 @@ async function getUserByEmail(email) {
  * Get user by id with role (student | admin | superadmin | null).
  * Superadmin = platform-wide; admin = per-university (has adminUniversityID).
  */
+/** Display name only (for chat peer labels; no password/role). */
+async function getFullNameByUserId(userId) {
+  const [rows] = await getPool().query('SELECT FullName FROM User WHERE UserID = ? LIMIT 1', [userId]);
+  return rows[0]?.FullName ?? null;
+}
+
 async function getUserById(userId) {
   const [rows] = await getPool().query(
     `SELECT u.UserID, u.Email, u.PasswordHash, u.FullName, u.PhoneNumber, u.CreatedAt, u.LastLogin,
@@ -151,6 +157,20 @@ async function updateStudentVerified(studentId, verified) {
 }
 
 /**
+ * Update student's university (Form 1 / profile).
+ * @param {number} studentId
+ * @param {number} universityId
+ * @returns {Promise<boolean>}
+ */
+async function updateStudentUniversity(studentId, universityId) {
+  const [result] = await getPool().query(
+    'UPDATE Student SET UniversityID = ? WHERE StudentID = ?',
+    [universityId, studentId]
+  );
+  return result.affectedRows > 0;
+}
+
+/**
  * Set User.LastLogin to now (e.g. on successful login).
  * @param {number} userId
  * @returns {Promise<void>}
@@ -189,6 +209,7 @@ async function deleteUser(userId) {
 
 module.exports = {
   getUserByEmail,
+  getFullNameByUserId,
   getUserById,
   getAllUsers,
   getUsersByUniversity,
@@ -197,6 +218,7 @@ module.exports = {
   createUser,
   createStudent,
   updateStudentVerified,
+  updateStudentUniversity,
   updateLastLogin,
   updateUser,
   deleteUser,

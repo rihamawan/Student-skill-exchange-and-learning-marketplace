@@ -1,5 +1,8 @@
-const TOKEN_KEY = 'skill_exchange_token';
-const USER_KEY = 'skill_exchange_user';
+export const AUTH_TOKEN_KEY = 'skill_exchange_token';
+export const AUTH_USER_KEY = 'skill_exchange_user';
+
+const TOKEN_KEY = AUTH_TOKEN_KEY;
+const USER_KEY = AUTH_USER_KEY;
 
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_KEY);

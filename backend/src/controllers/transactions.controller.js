@@ -44,4 +44,45 @@ async function paidExchange(req, res) {
   }
 }
 
-module.exports = { matchRequest, paidExchange };
+/**
+ * POST /api/v1/transactions/confirm-form2
+ * Form 2: create one or more exchanges + first session each (+ video / paid when applicable).
+ */
+async function confirmForm2(req, res) {
+  try {
+    const studentId = getStudentId(req);
+    if (!studentId) {
+      return res.status(403).json({ success: false, error: 'Only students can confirm an exchange' });
+    }
+    const conversationId = Number(req.body.conversationId);
+    const allowed = await conversationService.isParticipant(conversationId, studentId);
+    if (!allowed) {
+      return res.status(403).json({ success: false, error: 'Not a participant in this conversation' });
+    }
+    const data = await exchangeService.confirmForm2ExchangeSessions(req.body);
+    res.status(201).json({ success: true, data });
+  } catch (err) {
+    const clientCodes = new Set([
+      'INVALID_PAIRS',
+      'VIDEO_REQUIRED',
+      'CONVERSATION_NOT_FOUND',
+      'OFFER_NOT_FOUND',
+      'REQUEST_NOT_FOUND',
+      'INVALID_PAIR',
+      'SKILL_MISMATCH',
+      'REQUEST_NOT_OPEN',
+      'MODE_MISMATCH',
+      'PRICE_REQUIRED',
+    ]);
+    if (clientCodes.has(err.code)) {
+      return res.status(400).json({ success: false, error: err.message, code: err.code });
+    }
+    if (err.code === 'EXCHANGE_READINESS_REQUIRED') {
+      return res.status(409).json({ success: false, error: err.message, code: err.code });
+    }
+    console.error('transactions.confirmForm2', err);
+    res.status(500).json({ success: false, error: 'Transaction failed' });
+  }
+}
+
+module.exports = { matchRequest, paidExchange, confirmForm2 };

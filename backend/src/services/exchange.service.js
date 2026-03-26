@@ -6,6 +6,8 @@
 
 const { getPool } = require('./db');
 const { withTransaction } = require('./transactions');
+const matchingService = require('./matching.service');
+const conversationService = require('./conversation.service');
 
 /**
  * Scenario 1: Match an open request and create Exchange + Session in one transaction.
@@ -263,8 +265,177 @@ async function getByUniversity(universityId) {
   return rows;
 }
 
+/**
+ * Form 2: one or more Exchange + Session rows (+ VideoSession if online, PaidExchange + Payment if paid).
+ * @param {object} params
+ * @param {number} params.conversationId
+ * @param {'physical'|'online'} params.meetingType
+ * @param {string} params.venue
+ * @param {string} params.scheduledStart
+ * @param {string} params.scheduledEnd
+ * @param {{ offerId: number, requestId: number, agreedPrice?: number }[]} params.pairs
+ * @param {{ platform: string, meetingLink?: string, meetingPassword?: string }} [params.videoSession]
+ * @param {string} [params.paymentMethod]
+ */
+async function confirmForm2ExchangeSessions(params) {
+  const {
+    conversationId,
+    meetingType,
+    venue,
+    scheduledStart,
+    scheduledEnd,
+    pairs,
+    videoSession,
+    paymentMethod = 'Cash',
+  } = params;
+
+  if (!Array.isArray(pairs) || pairs.length === 0) {
+    const err = new Error('At least one offer/request pair is required.');
+    err.code = 'INVALID_PAIRS';
+    throw err;
+  }
+
+  if (meetingType === 'online') {
+    const platform = videoSession?.platform?.trim();
+    if (!platform) {
+      const err = new Error('Online meetings require videoSession.platform.');
+      err.code = 'VIDEO_REQUIRED';
+      throw err;
+    }
+  }
+
+  return withTransaction(async (conn) => {
+    const [convRows] = await conn.query(
+      'SELECT Student1ID, Student2ID FROM Conversation WHERE ConversationID = ?',
+      [conversationId]
+    );
+    if (!convRows.length) {
+      const err = new Error('Conversation not found.');
+      err.code = 'CONVERSATION_NOT_FOUND';
+      throw err;
+    }
+    const s1 = Number(convRows[0].Student1ID);
+    const s2 = Number(convRows[0].Student2ID);
+    const participants = new Set([s1, s2]);
+
+    const exchangeIds = [];
+    const sessionIds = [];
+
+    for (const pair of pairs) {
+      const { offerId, requestId, agreedPrice } = pair;
+      const [offRows] = await conn.query(
+        'SELECT OfferID, StudentID, SkillID, IsPaid FROM OfferedSkill WHERE OfferID = ?',
+        [offerId]
+      );
+      if (!offRows.length) {
+        const err = new Error('Offer not found.');
+        err.code = 'OFFER_NOT_FOUND';
+        throw err;
+      }
+      const off = offRows[0];
+      const [reqRows] = await conn.query(
+        'SELECT RequestID, StudentID, SkillID, PreferredMode, Status FROM RequestedSkill WHERE RequestID = ?',
+        [requestId]
+      );
+      if (!reqRows.length) {
+        const err = new Error('Request not found.');
+        err.code = 'REQUEST_NOT_FOUND';
+        throw err;
+      }
+      const req = reqRows[0];
+
+      const offerStudent = Number(off.StudentID);
+      const requestStudent = Number(req.StudentID);
+      if (offerStudent === requestStudent) {
+        const err = new Error('Offer and request must belong to different students.');
+        err.code = 'INVALID_PAIR';
+        throw err;
+      }
+      if (!participants.has(offerStudent) || !participants.has(requestStudent)) {
+        const err = new Error('Offer and request students must be the two conversation participants.');
+        err.code = 'INVALID_PAIR';
+        throw err;
+      }
+      if (Number(off.SkillID) !== Number(req.SkillID)) {
+        const err = new Error('Offer and request must be for the same skill.');
+        err.code = 'SKILL_MISMATCH';
+        throw err;
+      }
+      if (String(req.Status) !== 'open') {
+        const err = new Error('Request is not open.');
+        err.code = 'REQUEST_NOT_OPEN';
+        throw err;
+      }
+      if (!matchingService.modeMatches(off.IsPaid, req.PreferredMode)) {
+        const err = new Error('Offer mode does not match request preferred mode.');
+        err.code = 'MODE_MISMATCH';
+        throw err;
+      }
+
+      const isPaid = Boolean(Number(off.IsPaid));
+      if (isPaid) {
+        if (agreedPrice == null || Number(agreedPrice) <= 0) {
+          const err = new Error('Paid exchanges require agreedPrice > 0.');
+          err.code = 'PRICE_REQUIRED';
+          throw err;
+        }
+      }
+
+      const exchangeType = isPaid ? 'paid' : 'Exchange';
+      const [exResult] = await conn.query(
+        `INSERT INTO Exchange (OfferID, RequestID, ConversationID, ExchangeType, Status)
+         VALUES (?, ?, ?, ?, 'pending')`,
+        [offerId, requestId, conversationId, exchangeType]
+      );
+      const exchangeId = exResult.insertId;
+      exchangeIds.push(exchangeId);
+
+      const [sessResult] = await conn.query(
+        `INSERT INTO Session (ExchangeID, ScheduledStartTime, ScheduledEndTime, Venue, Status)
+         VALUES (?, ?, ?, ?, 'scheduled')`,
+        [exchangeId, scheduledStart, scheduledEnd, venue]
+      );
+      const sessionId = sessResult.insertId;
+      sessionIds.push(sessionId);
+
+      if (meetingType === 'online') {
+        await conn.query(
+          `INSERT INTO VideoSession (SessionID, MeetingLink, MeetingPassword, Platform)
+           VALUES (?, ?, ?, ?)`,
+          [
+            sessionId,
+            videoSession?.meetingLink?.trim() || null,
+            videoSession?.meetingPassword?.trim() || null,
+            videoSession.platform.trim(),
+          ]
+        );
+      }
+
+      if (isPaid) {
+        const price = Number(agreedPrice);
+        await conn.query(
+          'INSERT INTO PaidExchange (ExchangeID, Price, Currency) VALUES (?, ?, ?)',
+          [exchangeId, price, 'PKR']
+        );
+        await conn.query(
+          `INSERT INTO Payment (ExchangeID, Amount, PaymentStatus, PaymentMethod, PaidAt)
+           VALUES (?, ?, 'completed', ?, NOW())`,
+          [exchangeId, price, paymentMethod]
+        );
+      }
+
+      await conn.query('UPDATE RequestedSkill SET Status = ? WHERE RequestID = ?', ['matched', requestId]);
+    }
+
+    await conversationService.clearExchangeReadinessConn(conn, conversationId);
+
+    return { exchangeIds, sessionIds };
+  });
+}
+
 module.exports = {
   matchRequestCreateExchangeSession,
+  confirmForm2ExchangeSessions,
   createPaidExchangeWithPayment,
   getById,
   getByStudent,

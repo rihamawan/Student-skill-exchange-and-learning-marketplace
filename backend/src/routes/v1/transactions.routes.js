@@ -35,6 +35,21 @@ const paidExchangeValidators = [
   body('price').isFloat({ min: 0.01 }).withMessage('price must be a positive number'),
 ];
 
+const confirmForm2Validators = [
+  body('conversationId').isInt({ min: 1 }).withMessage('conversationId is required'),
+  body('meetingType').isIn(['physical', 'online']).withMessage('meetingType must be physical or online'),
+  body('venue').trim().notEmpty().withMessage('venue is required'),
+  body('scheduledStart').notEmpty().withMessage('scheduledStart is required'),
+  body('scheduledEnd').notEmpty().withMessage('scheduledEnd is required'),
+  body('pairs').isArray({ min: 1 }).withMessage('pairs must be a non-empty array'),
+  body('pairs.*.offerId').isInt({ min: 1 }).withMessage('Each pair needs offerId'),
+  body('pairs.*.requestId').isInt({ min: 1 }).withMessage('Each pair needs requestId'),
+  body('pairs.*.agreedPrice').optional().isFloat({ min: 0.01 }),
+  body('videoSession.platform').optional().trim().notEmpty(),
+  body('videoSession.meetingLink').optional().trim(),
+  body('videoSession.meetingPassword').optional().trim(),
+];
+
 // POST /api/v1/transactions/match-request (student only)
 router.post(
   '/match-request',
@@ -53,6 +68,16 @@ router.post(
   paidExchangeValidators,
   handleValidation,
   transactionsController.paidExchange
+);
+
+// POST /api/v1/transactions/confirm-form2 (student only) — Form 2
+router.post(
+  '/confirm-form2',
+  requireAuth,
+  requireRoles('student'),
+  confirmForm2Validators,
+  handleValidation,
+  transactionsController.confirmForm2
 );
 
 module.exports = router;

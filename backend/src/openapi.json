@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Student Skill Exchange API",
-    "description": "Backend API for the Skill Exchange platform. Auth (register/login), Users CRUD with RBAC, transactions (match-request, paid-exchange), universities, skills, exchanges, sessions, reviews, portfolio, payments. Protected routes require Authorization: Bearer <JWT>.\n\n## Live Chat (real-time)\n- **Send message:** REST only — POST /api/v1/conversations/{id}/messages with body { \"content\": \"...\" }. After saving, the server emits the same message over Socket.io to the conversation room so the other participant sees it in real time.\n- **Socket.io:** Same origin as API (e.g. http://localhost:5000). Auth: handshake with auth.token = 'Bearer <JWT>' or query token=<JWT>. Events: emit 'join_conversation' with { conversationId } to join (student, participant only); emit 'leave_conversation' with { conversationId }; listen 'message' for new messages (payload: id, conversationId, senderId, senderName, content, isRead, createdAt). See backend/docs/LIVE-CHAT.md for testing.",
+    "description": "Backend API for the Skill Exchange platform. Auth (register/login), Users CRUD with RBAC, transactions (match-request, paid-exchange, confirm-form2), **matching** (Form 1 / Form 2 eligibility), universities, skills, exchanges, sessions, reviews, portfolio, payments. Protected routes require Authorization: Bearer <JWT>.\n\n## Live Chat (real-time)\n- **Send message:** REST only — POST /api/v1/conversations/{id}/messages with body { \"content\": \"...\" }. After saving, the server emits the same message over Socket.io to the conversation room so the other participant sees it in real time.\n- **Exchange readiness:** PATCH /api/v1/conversations/{id}/exchange-readiness with { \"ready\": true|false }; server emits `exchange_readiness` to the conversation room (same join as chat).\n- **Socket.io:** Same origin as API (e.g. http://localhost:5000). Auth: handshake with auth.token = 'Bearer <JWT>' or query token=<JWT>. Events: emit 'join_conversation' with { conversationId } to join (student, participant only); emit 'leave_conversation' with { conversationId }; listen 'message' for new messages; listen 'exchange_readiness' for Form 2 slider sync. See backend/docs/LIVE-CHAT.md for testing.",
     "version": "1.0.0"
   },
   "servers": [
@@ -316,6 +316,92 @@
           "400": { "description": "Validation error" },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Student role required" }
+        }
+      }
+    },
+    "/api/v1/transactions/confirm-form2": {
+      "post": {
+        "summary": "Confirm exchange (Form 2)",
+        "description": "Student only, participant only. Requires both students to have PATCHed exchange-readiness ready. Creates one or more Exchange + Session rows; VideoSession if online; PaidExchange + Payment if paid. Resets readiness flags after success.",
+        "tags": ["Transactions"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmForm2Request" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConfirmForm2Response" }
+              }
+            }
+          },
+          "400": { "description": "Validation or business rule error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Not a participant" },
+          "409": { "description": "Exchange readiness not satisfied for both students" }
+        }
+      }
+    },
+    "/api/v1/matching/form1": {
+      "post": {
+        "summary": "Save match profile (Form 1)",
+        "description": "Student only. Updates full name, university, replaces offered/requested skills not tied to an Exchange.",
+        "tags": ["Matching"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MatchForm1Request" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Saved" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" },
+          "404": { "description": "University or user not found" }
+        }
+      }
+    },
+    "/api/v1/matching/check": {
+      "get": {
+        "summary": "Check mutual match with another student",
+        "description": "Student only. Query: otherStudentId (integer). Returns matched and directional pair hints.",
+        "tags": ["Matching"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "otherStudentId", "in": "query", "required": true, "schema": { "type": "integer", "minimum": 1 } }
+        ],
+        "responses": {
+          "200": { "description": "Match evaluation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MatchCheckResponse" } } } },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Student required" }
+        }
+      }
+    },
+    "/api/v1/matching/conversations/{conversationId}/form2-eligibility": {
+      "get": {
+        "summary": "Form 2 eligibility for a conversation",
+        "description": "Student participant only. Returns suggested offer/request pairs, mutualSwapReady, and exchangeReadiness (iAmReady, peerReady, bothReady).",
+        "tags": ["Matching"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "conversationId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Eligibility payload" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Not a participant" },
+          "404": { "description": "Conversation not found" }
         }
       }
     },
@@ -858,7 +944,8 @@
           },
           "400": { "description": "Validation error (e.g. invalid otherStudentId)" },
           "401": { "description": "Unauthorized" },
-          "403": { "description": "Student required" }
+          "403": { "description": "Student required" },
+          "409": { "description": "No mutual skill match — conversation not created" }
         }
       }
     },
@@ -888,6 +975,36 @@
           },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Student required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/conversations/{id}/exchange-readiness": {
+      "patch": {
+        "summary": "Set exchange readiness (Form 2 slider)",
+        "description": "Student only. Body: { ready: boolean }. Emits `exchange_readiness` to the conversation Socket.io room.",
+        "tags": ["Conversations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ready"],
+                "properties": { "ready": { "type": "boolean" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated conversation payload" },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Not a participant" },
           "404": { "description": "Not found" }
         }
       }
@@ -1724,7 +1841,101 @@
           "id": { "type": "integer", "description": "ConversationID" },
           "student1Id": { "type": "integer" },
           "student2Id": { "type": "integer" },
-          "createdAt": { "type": "string", "format": "date-time" }
+          "createdAt": { "type": "string", "format": "date-time" },
+          "student1ExchangeReady": { "type": "boolean" },
+          "student2ExchangeReady": { "type": "boolean" },
+          "myExchangeReady": { "type": "boolean", "description": "When viewer is a participant" },
+          "peerExchangeReady": { "type": "boolean" }
+        }
+      },
+      "MatchForm1Request": {
+        "type": "object",
+        "required": ["fullName", "universityId", "offered", "requested"],
+        "properties": {
+          "fullName": { "type": "string" },
+          "universityId": { "type": "integer" },
+          "offered": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["skillId", "isPaid"],
+              "properties": {
+                "skillId": { "type": "integer" },
+                "isPaid": { "type": "boolean" },
+                "pricePerHour": { "type": "number", "minimum": 0 }
+              }
+            }
+          },
+          "requested": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["skillId", "preferredTime", "preferredMode"],
+              "properties": {
+                "skillId": { "type": "integer" },
+                "preferredTime": { "type": "string", "enum": ["Morning", "Evenings", "Weekdays", "Weekends", "Flexible"] },
+                "preferredMode": { "type": "string", "enum": ["Exchange", "Paid"] }
+              }
+            }
+          }
+        }
+      },
+      "MatchCheckResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "matched": { "type": "boolean" },
+              "aLearnsFromB": { "type": "object", "nullable": true },
+              "bLearnsFromA": { "type": "object", "nullable": true }
+            }
+          }
+        }
+      },
+      "ConfirmForm2Request": {
+        "type": "object",
+        "required": ["conversationId", "meetingType", "venue", "scheduledStart", "scheduledEnd", "pairs"],
+        "properties": {
+          "conversationId": { "type": "integer" },
+          "meetingType": { "type": "string", "enum": ["physical", "online"] },
+          "venue": { "type": "string" },
+          "scheduledStart": { "type": "string", "description": "MySQL DATETIME string" },
+          "scheduledEnd": { "type": "string" },
+          "pairs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["offerId", "requestId"],
+              "properties": {
+                "offerId": { "type": "integer" },
+                "requestId": { "type": "integer" },
+                "agreedPrice": { "type": "number", "minimum": 0.01 }
+              }
+            }
+          },
+          "videoSession": {
+            "type": "object",
+            "properties": {
+              "platform": { "type": "string" },
+              "meetingLink": { "type": "string" },
+              "meetingPassword": { "type": "string" }
+            }
+          }
+        }
+      },
+      "ConfirmForm2Response": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "exchangeIds": { "type": "array", "items": { "type": "integer" } },
+              "sessionIds": { "type": "array", "items": { "type": "integer" } }
+            }
+          }
         }
       },
       "Message": {

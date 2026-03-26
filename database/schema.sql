@@ -149,6 +149,8 @@ CREATE TABLE Conversation (
     ConversationID INT      NOT NULL AUTO_INCREMENT,
     Student1ID     INT      NOT NULL,
     Student2ID     INT      NOT NULL,
+    Student1ExchangeReady TINYINT NOT NULL DEFAULT 0,
+    Student2ExchangeReady TINYINT NOT NULL DEFAULT 0,
     CreatedAt      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (ConversationID),
     CONSTRAINT fk_conv_s1 FOREIGN KEY (Student1ID)

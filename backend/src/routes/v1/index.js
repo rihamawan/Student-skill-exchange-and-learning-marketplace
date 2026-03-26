@@ -23,6 +23,7 @@ const skillEvaluationsRoutes = require('./skillEvaluations.routes');
 const adminRoutes = require('./admin.routes');
 const adminsRoutes = require('./admins.routes');
 const reportsRoutes = require('./reports.routes');
+const matchingRoutes = require('./matching.routes');
 
 const router = express.Router();
 
@@ -57,6 +58,9 @@ router.use('/skills', skillsRoutes);
 // Offered / requested skills (student CRUD)
 router.use('/offered-skills', offeredSkillsRoutes);
 router.use('/requested-skills', requestedSkillsRoutes);
+
+// Match forms (Form 1 / Form 2 helpers)
+router.use('/matching', matchingRoutes);
 
 // Conversations & messages
 router.use('/conversations', conversationsRoutes);

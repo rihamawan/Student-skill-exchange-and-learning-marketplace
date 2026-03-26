@@ -1,24 +1,22 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { dashboardPathForRole, isValidRole } from '../lib/roles';
-import { clearStoredAuth, getStoredToken, getStoredUser, setStoredAuth } from '../lib/authStorage';
+import {
+  AUTH_TOKEN_KEY,
+  AUTH_USER_KEY,
+  clearStoredAuth,
+  getStoredToken,
+  getStoredUser,
+  setStoredAuth,
+} from '../lib/authStorage';
+import { decodeJwtPayload } from '../lib/jwtPayload';
 
 const AuthContext = createContext(null);
 
-function decodeJwtPayload(token) {
-  // JWT is base64url-encoded: header.payload.signature
-  // We only need payload.role for RBAC correctness.
-  try {
-    const parts = String(token).split('.');
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
-    const json = atob(padded);
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
+function numUserId(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 // If there is a token but role is missing/invalid (e.g. user registered without a Student row),
@@ -36,45 +34,109 @@ export function AuthProvider({ children }) {
       clearStoredAuth();
       return null;
     }
-    return storedUser ? { ...storedUser, role: roleFromToken } : { role: roleFromToken };
+    const idFromJwt = numUserId(payload?.userId ?? payload?.UserID);
+    const idFromStored = numUserId(storedUser?.id ?? storedUser?.UserID);
+    // JWT is authoritative — stale localStorage id must not override (e.g. after switching accounts).
+    const resolvedId = idFromJwt ?? idFromStored;
+    if (storedUser) {
+      return {
+        ...storedUser,
+        role: roleFromToken,
+        ...(resolvedId != null ? { id: resolvedId } : {}),
+      };
+    }
+    return {
+      role: roleFromToken,
+      ...(resolvedId != null ? { id: resolvedId } : {}),
+      ...(payload?.email ? { email: payload.email } : {}),
+    };
   });
   const [ready, setReady] = useState(() => !tokenAtLoad);
 
-  useEffect(() => {
+  /** Apply JWT + /me so UI matches the token (critical when another tab logs in — shared localStorage). */
+  const syncSessionWithServer = useCallback(async () => {
     const token = getStoredToken();
     if (!token) {
+      setUser(null);
+      setReady(true);
       return;
     }
 
-    // Validate role from JWT payload first to avoid any stale localStorage causing redirects.
     const payload = decodeJwtPayload(token);
     const roleFromToken = payload?.role;
     if (!isValidRole(roleFromToken)) {
       clearStoredAuth();
-      // Avoid sync state update warnings; do it async.
-      setTimeout(() => {
-        setUser(null);
-        setReady(true);
-      }, 0);
+      setUser(null);
+      setReady(true);
       return;
     }
 
+    const idFromJwt = numUserId(payload?.userId ?? payload?.UserID);
+    const storedUser = getStoredUser();
+    setUser((prev) => ({
+      ...(storedUser || {}),
+      ...prev,
+      role: roleFromToken,
+      ...(idFromJwt != null ? { id: idFromJwt } : {}),
+      email: payload?.email ?? storedUser?.email ?? prev?.email,
+    }));
+
+    try {
+      const meRes = await api('/api/v1/users/me', { method: 'GET', skipAuthRedirect: true });
+      if (meRes?.success && meRes.data) {
+        const d = meRes.data;
+        const serverId = numUserId(d.id);
+        setUser((prev) => ({
+          ...prev,
+          id: serverId ?? numUserId(prev?.id),
+          email: d.email ?? prev?.email,
+          fullName: d.name ?? prev?.fullName,
+          role: roleFromToken,
+        }));
+        const t = getStoredToken();
+        if (t) {
+          const u = getStoredUser() || {};
+          setStoredAuth(t, {
+            ...u,
+            id: serverId ?? numUserId(u.id),
+            email: d.email ?? u.email,
+            fullName: d.name ?? u.fullName,
+            role: roleFromToken,
+          });
+        }
+      }
+    } catch (e) {
+      if (e.status === 401 || e.message?.includes('401')) {
+        clearStoredAuth();
+        setUser(null);
+      }
+    } finally {
+      setReady(true);
+    }
+  }, []);
+
+  const syncSessionWithServerRef = useRef(syncSessionWithServer);
+  syncSessionWithServerRef.current = syncSessionWithServer;
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        await api('/api/v1/users/me', { method: 'GET', skipAuthRedirect: true });
-        if (!cancelled) setReady(true);
-      } catch (e) {
-        if (e.status === 401 || e.message?.includes('401')) {
-          clearStoredAuth();
-          if (!cancelled) setUser(null);
-        }
-        if (!cancelled) setReady(true);
-      }
+      await syncSessionWithServer();
+      if (cancelled) return;
     })();
     return () => {
       cancelled = true;
     };
+  }, [syncSessionWithServer]);
+
+  // Other windows/tabs share localStorage: logging in there overwrites the token here.
+  useEffect(() => {
+    function onStorage(e) {
+      if (e.key !== AUTH_TOKEN_KEY && e.key !== AUTH_USER_KEY) return;
+      void syncSessionWithServerRef.current();
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const login = useCallback(
