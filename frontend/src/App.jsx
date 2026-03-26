@@ -8,11 +8,16 @@ import { SuperadminDashboard } from './pages/dashboards/SuperadminDashboard';
 import { ForbiddenPage } from './pages/ForbiddenPage';
 import { HomeRedirect } from './pages/HomeRedirect';
 import { LoginPage } from './pages/LoginPage';
+import { ConversationsPage } from './pages/ConversationsPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ReportsPage } from './pages/ReportsPage';
+import { MatchIntakePage } from './pages/MatchIntakePage';
+import { ConfirmExchangePage } from './pages/ConfirmExchangePage';
 
 const STUDENT_NAV = [
   { to: '/student', label: 'Dashboard' },
+  { to: '/student/match-profile', label: 'Match profile' },
   { to: '/student/offered-skills', label: 'Offered skills' },
   { to: '/student/requested-skills', label: 'Requested skills' },
   { to: '/student/conversations', label: 'Conversations' },
@@ -82,10 +87,9 @@ export default function App() {
           path="requested-skills"
           element={<PlaceholderPage title="Requested skills" description="Member 2: list and manage skill requests here." />}
         />
-        <Route
-          path="conversations"
-          element={<PlaceholderPage title="Conversations" description="Member 2/3: messaging and real-time chat here." />}
-        />
+        <Route path="conversations" element={<ConversationsPage />} />
+        <Route path="match-profile" element={<MatchIntakePage />} />
+        <Route path="confirm-exchange/:conversationId" element={<ConfirmExchangePage />} />
         <Route
           path="exchanges"
           element={<PlaceholderPage title="Exchanges" description="Member 2: exchanges and transaction flows here." />}
@@ -98,10 +102,7 @@ export default function App() {
           path="students"
           element={<PlaceholderPage title="Students" description="Member 2: university student list and verification." />}
         />
-        <Route
-          path="reports"
-          element={<PlaceholderPage title="Reports" description="Member 3: charts and stats for your university." />}
-        />
+        <Route path="reports" element={<ReportsPage scope="admin" />} />
         <Route
           path="evaluations"
           element={<PlaceholderPage title="Skill evaluations" description="Member 2: evaluation CRUD if required." />}
@@ -119,10 +120,7 @@ export default function App() {
           element={<PlaceholderPage title="Skills catalog" description="Member 2: manage skills (superadmin only)." />}
         />
         <Route path="admins" element={<PlaceholderPage title="Admins" description="Member 2: manage admin users." />} />
-        <Route
-          path="reports"
-          element={<PlaceholderPage title="Platform reports" description="Member 3: analytics dashboard." />}
-        />
+        <Route path="reports" element={<ReportsPage scope="superadmin" />} />
       </Route>
 
       <Route path="*" element={<ForbiddenPage />} />
