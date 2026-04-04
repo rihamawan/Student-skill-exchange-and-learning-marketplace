@@ -4,6 +4,14 @@
  */
 
 const userService = require('../services/user.service');
+const universityService = require('../services/university.service');
+
+function emailDomain(email) {
+  const str = String(email ?? '').trim().toLowerCase();
+  const at = str.lastIndexOf('@');
+  if (at === -1) return null;
+  return str.slice(at + 1) || null;
+}
 
 function toApiStudent(row) {
   if (!row) return null;
@@ -40,7 +48,27 @@ async function verifyStudent(req, res) {
     if (!allowed) {
       return res.status(403).json({ success: false, error: 'Student not in your university' });
     }
+
     const verified = req.body.verified === true;
+
+    // Extra safety: only when verifying (approved), enforce that email domain matches
+    // the selected university (based on University.ContactEmail domain).
+    if (verified) {
+      const uni = await universityService.getById(universityId);
+      const expectedDomain = emailDomain(uni?.ContactEmail);
+      if (expectedDomain) {
+        const studentUser = await userService.getUserById(studentId);
+        const studentEmail = studentUser?.Email;
+        const studentDomain = emailDomain(studentEmail);
+        if (studentDomain && !studentDomain.endsWith(expectedDomain)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Email domain must match your university',
+          });
+        }
+      }
+    }
+
     const updated = await userService.updateStudentVerified(studentId, verified);
     if (!updated) {
       return res.status(404).json({ success: false, error: 'Student not found' });

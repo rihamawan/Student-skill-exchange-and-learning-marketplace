@@ -78,6 +78,34 @@ async function evaluateMutualMatch(studentIdA, studentIdB) {
 }
 
 /**
+ * Other students at the same university who mutually match this student (same rules as evaluateMutualMatch).
+ * @returns {Promise<Array<{ studentId: number, fullName: string }>>}
+ */
+async function listMutualMatchesForStudent(studentId) {
+  const pool = getPool();
+  const [meRows] = await pool.query('SELECT UniversityID FROM Student WHERE StudentID = ?', [studentId]);
+  if (!meRows.length) {
+    return [];
+  }
+  const uniId = meRows[0].UniversityID;
+  const [peers] = await pool.query(
+    'SELECT StudentID FROM Student WHERE UniversityID = ? AND StudentID <> ?',
+    [uniId, studentId]
+  );
+  const out = [];
+  for (const p of peers) {
+    const other = Number(p.StudentID);
+    if (!Number.isFinite(other) || other < 1) continue;
+    const { matched } = await evaluateMutualMatch(studentId, other);
+    if (!matched) continue;
+    const [urows] = await pool.query('SELECT FullName FROM User WHERE UserID = ?', [other]);
+    const fullName = urows[0]?.FullName != null ? String(urows[0].FullName) : 'Student';
+    out.push({ studentId: other, fullName });
+  }
+  return out;
+}
+
+/**
  * Replace offers/requests not tied to an Exchange; update name + university.
  */
 async function saveMatchForm1(userId, payload) {
@@ -230,6 +258,7 @@ async function getForm2Eligibility(conversationId, studentId) {
 module.exports = {
   modeMatches,
   evaluateMutualMatch,
+  listMutualMatchesForStudent,
   saveMatchForm1,
   getForm2Eligibility,
   PREFERRED_TIMES,

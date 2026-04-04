@@ -8,6 +8,7 @@ const { body, param, validationResult } = require('express-validator');
 const requestedSkillsController = require('../../controllers/requestedSkills.controller');
 const { requireAuth } = require('../../middleware/auth.middleware');
 const { requireRoles } = require('../../middleware/rbac.middleware');
+const { requireStudentVerified } = require('../../middleware/requireStudentVerified.middleware');
 
 const router = express.Router();
 
@@ -28,8 +29,33 @@ const createValidators = [
 
 router.get('/', requireAuth, requestedSkillsController.list);
 router.get('/:id', requireAuth, idParam, handleValidation, requestedSkillsController.get);
-router.post('/', requireAuth, requireRoles('student'), createValidators, handleValidation, requestedSkillsController.create);
-router.patch('/:id/status', requireAuth, requireRoles('student'), idParam, body('status').isIn(['open', 'matched', 'closed']), handleValidation, requestedSkillsController.updateStatus);
-router.delete('/:id', requireAuth, requireRoles('student'), idParam, handleValidation, requestedSkillsController.remove);
+router.post(
+  '/',
+  requireAuth,
+  requireRoles('student'),
+  requireStudentVerified,
+  createValidators,
+  handleValidation,
+  requestedSkillsController.create
+);
+router.patch(
+  '/:id/status',
+  requireAuth,
+  requireRoles('student'),
+  requireStudentVerified,
+  idParam,
+  body('status').isIn(['open', 'matched', 'closed']),
+  handleValidation,
+  requestedSkillsController.updateStatus
+);
+router.delete(
+  '/:id',
+  requireAuth,
+  requireRoles('student'),
+  requireStudentVerified,
+  idParam,
+  handleValidation,
+  requestedSkillsController.remove
+);
 
 module.exports = router;

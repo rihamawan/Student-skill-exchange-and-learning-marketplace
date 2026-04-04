@@ -8,6 +8,7 @@ const { body, param, validationResult } = require('express-validator');
 const exchangesController = require('../../controllers/exchanges.controller');
 const { requireAuth } = require('../../middleware/auth.middleware');
 const { requireRoles } = require('../../middleware/rbac.middleware');
+const { requireStudentVerified } = require('../../middleware/requireStudentVerified.middleware');
 
 const router = express.Router();
 
@@ -21,8 +22,31 @@ function handleValidation(req, res, next) {
 
 const idParam = param('id').isInt({ min: 1 }).withMessage('Invalid exchange id');
 
-router.get('/', requireAuth, requireRoles('student', 'admin', 'superadmin'), exchangesController.list);
-router.get('/:id', requireAuth, requireRoles('student', 'admin', 'superadmin'), idParam, handleValidation, exchangesController.get);
-router.patch('/:id/status', requireAuth, requireRoles('student', 'admin', 'superadmin'), idParam, body('status').isIn(['pending', 'active', 'completed', 'cancelled']), handleValidation, exchangesController.updateStatus);
+router.get(
+  '/',
+  requireAuth,
+  requireRoles('student', 'admin', 'superadmin'),
+  requireStudentVerified,
+  exchangesController.list
+);
+router.get(
+  '/:id',
+  requireAuth,
+  requireRoles('student', 'admin', 'superadmin'),
+  requireStudentVerified,
+  idParam,
+  handleValidation,
+  exchangesController.get
+);
+router.patch(
+  '/:id/status',
+  requireAuth,
+  requireRoles('student', 'admin', 'superadmin'),
+  requireStudentVerified,
+  idParam,
+  body('status').isIn(['pending', 'active', 'completed', 'cancelled']),
+  handleValidation,
+  exchangesController.updateStatus
+);
 
 module.exports = router;

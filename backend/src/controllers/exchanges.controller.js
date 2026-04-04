@@ -6,7 +6,10 @@
 const exchangeService = require('../services/exchange.service');
 
 function getStudentId(req) {
-  return req.user?.role === 'student' ? req.user.UserID : null;
+  if (String(req.user?.role ?? '').toLowerCase() !== 'student') return null;
+  const id = req.user?.UserID ?? req.user?.userId ?? req.user?.id;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : null;
 }
 
 function toApi(row) {

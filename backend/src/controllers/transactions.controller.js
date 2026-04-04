@@ -4,6 +4,14 @@
  */
 
 const exchangeService = require('../services/exchange.service');
+const conversationService = require('../services/conversation.service');
+
+function getStudentId(req) {
+  if (String(req.user?.role ?? '').toLowerCase() !== 'student') return null;
+  const id = req.user?.UserID ?? req.user?.userId ?? req.user?.id;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : null;
+}
 
 /**
  * POST /api/v1/transactions/match-request

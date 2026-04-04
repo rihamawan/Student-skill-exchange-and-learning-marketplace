@@ -188,9 +188,49 @@ export function MatchIntakePage() {
 
       <hr />
 
-      <h2>Check match &amp; start chat</h2>
+      <h2>Students you can pair with</h2>
       <p className="muted">
-        Save your match profile first, then check. Use the other student’s user ID (same as StudentID in this app).
+        We look at everyone at <strong>your university</strong> and list people where <strong>both</strong> sides have a
+        valid swap: you teach something they asked for (same free/paid mode), and they teach something you asked for.
+        Refresh after you save, or after others update their profiles.
+      </p>
+      <p>
+        <button type="button" className="btn-secondary" disabled={f.loadingMatches} onClick={() => f.loadMutualMatches()}>
+          {f.loadingMatches ? 'Loading…' : 'Refresh match list'}
+        </button>
+      </p>
+      {f.matchesError ? (
+        <p className="form-error" role="alert">
+          {f.matchesError}
+        </p>
+      ) : null}
+      {!f.loadingMatches && f.mutualMatches.length === 0 ? (
+        <p className="muted">No mutual matches yet — save your profile above, and make sure another student has complementary offers/requests.</p>
+      ) : null}
+      {f.mutualMatches.length > 0 ? (
+        <ul className="match-suggestions">
+          {f.mutualMatches.map((m) => (
+            <li key={m.studentId} className="match-suggestion card-like">
+              <span>
+                <strong>{m.fullName}</strong>
+                <span className="muted"> — ID {m.studentId}</span>
+              </span>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={f.opening}
+                onClick={() => f.openConversationWithPeer(m.studentId)}
+              >
+                Open chat
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <h2>Check match by ID (optional)</h2>
+      <p className="muted">
+        If you already know someone’s user ID, you can verify a pair with them without using the list above.
       </p>
       <div className="field">
         <label htmlFor="mi-other">Other student ID</label>

@@ -41,6 +41,24 @@ export function useMatchIntakeForm(opts = {}) {
   const [openError, setOpenError] = useState('');
   const [opening, setOpening] = useState(false);
 
+  const [mutualMatches, setMutualMatches] = useState([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+  const [matchesError, setMatchesError] = useState('');
+
+  const loadMutualMatches = useCallback(async () => {
+    setMatchesError('');
+    setLoadingMatches(true);
+    try {
+      const res = await api('/api/v1/matching/matches');
+      setMutualMatches(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      setMatchesError(e.message || 'Could not load matching students');
+      setMutualMatches([]);
+    } finally {
+      setLoadingMatches(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -65,6 +83,12 @@ export function useMatchIntakeForm(opts = {}) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!loadingRefs) {
+      void loadMutualMatches();
+    }
+  }, [loadingRefs, loadMutualMatches]);
 
   useEffect(() => {
     if (initialFullName && !fullName) setFullName(initialFullName);
@@ -96,15 +120,27 @@ export function useMatchIntakeForm(opts = {}) {
 
   const buildPayload = useCallback(() => {
     const uid = Number(universityId);
+    const offeredRows = offered.filter(
+      (o) => o.skillId !== '' && Number.isFinite(Number(o.skillId)) && Number(o.skillId) >= 1
+    );
+    const requestedRows = requested.filter(
+      (r) => r.skillId !== '' && Number.isFinite(Number(r.skillId)) && Number(r.skillId) >= 1
+    );
     const body = {
       fullName: fullName.trim(),
       universityId: uid,
-      offered: offered.map((o) => ({
-        skillId: Number(o.skillId),
-        isPaid: Boolean(o.isPaid),
-        pricePerHour: o.isPaid && o.pricePerHour !== '' ? Number(o.pricePerHour) : null,
-      })),
-      requested: requested.map((r) => ({
+      offered: offeredRows.map((o) => {
+        const row = {
+          skillId: Number(o.skillId),
+          isPaid: Boolean(o.isPaid),
+        };
+        if (o.isPaid) {
+          row.pricePerHour =
+            o.pricePerHour === '' ? 0 : Number(o.pricePerHour);
+        }
+        return row;
+      }),
+      requested: requestedRows.map((r) => ({
         skillId: Number(r.skillId),
         preferredTime: r.preferredTime,
         preferredMode: r.preferredMode,
@@ -115,16 +151,49 @@ export function useMatchIntakeForm(opts = {}) {
 
   const submitForm1 = useCallback(async () => {
     setSaveError('');
+    if (!fullName.trim()) {
+      setSaveError('Enter your full name.');
+      return;
+    }
+    const uid = Number(universityId);
+    if (!Number.isFinite(uid) || uid < 1) {
+      setSaveError('Select your university.');
+      return;
+    }
+    const offeredRows = offered.filter(
+      (o) => o.skillId !== '' && Number.isFinite(Number(o.skillId)) && Number(o.skillId) >= 1
+    );
+    const requestedRows = requested.filter(
+      (r) => r.skillId !== '' && Number.isFinite(Number(r.skillId)) && Number(r.skillId) >= 1
+    );
+    if (offeredRows.length === 0) {
+      setSaveError('Add at least one offered skill and choose a skill in each row (or remove empty rows).');
+      return;
+    }
+    if (requestedRows.length === 0) {
+      setSaveError('Add at least one wanted skill and choose a skill in each row (or remove empty rows).');
+      return;
+    }
+    for (const o of offeredRows) {
+      if (o.isPaid) {
+        const p = o.pricePerHour === '' ? NaN : Number(o.pricePerHour);
+        if (!Number.isFinite(p) || p < 0) {
+          setSaveError('Paid offers need a valid price per hour (0 or more).');
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
       const body = buildPayload();
       await api('/api/v1/matching/form1', { method: 'POST', body });
+      await loadMutualMatches();
     } catch (e) {
       setSaveError(e.message || 'Save failed');
     } finally {
       setSaving(false);
     }
-  }, [buildPayload]);
+  }, [buildPayload, fullName, universityId, offered, requested, loadMutualMatches]);
 
   const checkMatch = useCallback(async () => {
     setCheckError('');
@@ -145,27 +214,34 @@ export function useMatchIntakeForm(opts = {}) {
     }
   }, [otherStudentId]);
 
+  const openConversationWithPeer = useCallback(
+    async (peerStudentId) => {
+      setOpenError('');
+      const other = Number(peerStudentId);
+      if (!Number.isFinite(other) || other < 1) {
+        setOpenError('Invalid student.');
+        return;
+      }
+      setOpening(true);
+      try {
+        const res = await api('/api/v1/conversations/get-or-create', {
+          method: 'POST',
+          body: { otherStudentId: other },
+        });
+        const id = res.data?.id;
+        if (id != null) navigate(`/student/conversations`);
+      } catch (e) {
+        setOpenError(e.message || 'Could not open conversation');
+      } finally {
+        setOpening(false);
+      }
+    },
+    [navigate]
+  );
+
   const openConversation = useCallback(async () => {
-    setOpenError('');
-    const other = Number(otherStudentId);
-    if (!Number.isFinite(other) || other < 1) {
-      setOpenError('Enter the other student’s numeric ID.');
-      return;
-    }
-    setOpening(true);
-    try {
-      const res = await api('/api/v1/conversations/get-or-create', {
-        method: 'POST',
-        body: { otherStudentId: other },
-      });
-      const id = res.data?.id;
-      if (id != null) navigate(`/student/conversations`);
-    } catch (e) {
-      setOpenError(e.message || 'Could not open conversation');
-    } finally {
-      setOpening(false);
-    }
-  }, [otherStudentId, navigate]);
+    await openConversationWithPeer(Number(otherStudentId));
+  }, [otherStudentId, openConversationWithPeer]);
 
   return {
     universities,
@@ -197,5 +273,10 @@ export function useMatchIntakeForm(opts = {}) {
     openError,
     opening,
     openConversation,
+    openConversationWithPeer,
+    mutualMatches,
+    loadingMatches,
+    matchesError,
+    loadMutualMatches,
   };
 }

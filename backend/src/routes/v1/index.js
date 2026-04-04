@@ -24,6 +24,8 @@ const adminRoutes = require('./admin.routes');
 const adminsRoutes = require('./admins.routes');
 const reportsRoutes = require('./reports.routes');
 const matchingRoutes = require('./matching.routes');
+const studentsRoutes = require('./students.routes');
+const skillQuizRoutes = require('./skillQuiz.routes');
 
 const router = express.Router();
 
@@ -77,5 +79,9 @@ router.use('/payments', paymentsRoutes);
 // Skill questions & evaluations (read-only API)
 router.use('/skill-questions', skillQuestionsRoutes);
 router.use('/skill-evaluations', skillEvaluationsRoutes);
+
+// Student verification + quiz
+router.use('/students', studentsRoutes);
+router.use('/skill-quiz', skillQuizRoutes);
 
 module.exports = router;

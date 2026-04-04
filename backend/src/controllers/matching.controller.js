@@ -49,6 +49,21 @@ async function getCheck(req, res) {
   }
 }
 
+/** All students at your university who mutually match you (complementary offers/requests + mode). */
+async function getMatches(req, res) {
+  try {
+    const studentId = getStudentId(req);
+    if (!studentId) {
+      return res.status(403).json({ success: false, error: 'Only students can list matches' });
+    }
+    const list = await matchingService.listMutualMatchesForStudent(studentId);
+    res.status(200).json({ success: true, data: list });
+  } catch (err) {
+    console.error('matching.getMatches', err);
+    res.status(500).json({ success: false, error: 'Failed to load matches' });
+  }
+}
+
 async function getForm2Eligibility(req, res) {
   try {
     const studentId = getStudentId(req);
@@ -70,4 +85,4 @@ async function getForm2Eligibility(req, res) {
   }
 }
 
-module.exports = { postForm1, getCheck, getForm2Eligibility };
+module.exports = { postForm1, getCheck, getMatches, getForm2Eligibility };

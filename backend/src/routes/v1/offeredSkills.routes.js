@@ -8,6 +8,7 @@ const { body, param, validationResult } = require('express-validator');
 const offeredSkillsController = require('../../controllers/offeredSkills.controller');
 const { requireAuth } = require('../../middleware/auth.middleware');
 const { requireRoles } = require('../../middleware/rbac.middleware');
+const { requireStudentVerified } = require('../../middleware/requireStudentVerified.middleware');
 
 const router = express.Router();
 
@@ -23,13 +24,42 @@ const idParam = param('id').isInt({ min: 1 }).withMessage('Invalid offer id');
 const createValidators = [
   body('skillId').isInt({ min: 1 }).withMessage('skillId is required'),
   body('isPaid').optional().isBoolean().withMessage('isPaid must be boolean'),
-  body('pricePerHour').optional().isFloat({ min: 0 }).withMessage('pricePerHour must be non-negative'),
+  body('pricePerHour')
+    .optional({ nullable: true })
+    .isFloat({ min: 0 })
+    .withMessage('pricePerHour must be non-negative'),
 ];
 
 router.get('/', requireAuth, offeredSkillsController.list);
 router.get('/:id', requireAuth, idParam, handleValidation, offeredSkillsController.get);
-router.post('/', requireAuth, requireRoles('student'), createValidators, handleValidation, offeredSkillsController.create);
-router.put('/:id', requireAuth, requireRoles('student'), idParam, body('isPaid').optional().isBoolean(), body('pricePerHour').optional().isFloat({ min: 0 }), handleValidation, offeredSkillsController.update);
-router.delete('/:id', requireAuth, requireRoles('student'), idParam, handleValidation, offeredSkillsController.remove);
+router.post(
+  '/',
+  requireAuth,
+  requireRoles('student'),
+  requireStudentVerified,
+  createValidators,
+  handleValidation,
+  offeredSkillsController.create
+);
+router.put(
+  '/:id',
+  requireAuth,
+  requireRoles('student'),
+  requireStudentVerified,
+  idParam,
+  body('isPaid').optional().isBoolean(),
+  body('pricePerHour').optional({ nullable: true }).isFloat({ min: 0 }),
+  handleValidation,
+  offeredSkillsController.update
+);
+router.delete(
+  '/:id',
+  requireAuth,
+  requireRoles('student'),
+  requireStudentVerified,
+  idParam,
+  handleValidation,
+  offeredSkillsController.remove
+);
 
 module.exports = router;

@@ -5,12 +5,20 @@
 
 const authService = require('../services/auth.service');
 const userService = require('../services/user.service');
+const universityService = require('../services/university.service');
 
 /** Strip password and shape for API */
 function toAuthUser(row) {
   if (!row) return null;
   const { PasswordHash, ...rest } = row;
   return { id: rest.UserID, email: rest.Email, fullName: rest.FullName, role: rest.role, phoneNumber: rest.PhoneNumber ?? null };
+}
+
+function emailDomain(email) {
+  const str = String(email ?? '').trim().toLowerCase();
+  const at = str.lastIndexOf('@');
+  if (at === -1) return null;
+  return str.slice(at + 1) || null;
 }
 
 /**
@@ -21,6 +29,22 @@ function toAuthUser(row) {
 async function register(req, res) {
   try {
     const { email, password, fullName, phoneNumber, universityId } = req.body;
+
+    // If registering as a student with a universityId, enforce that email domain matches
+    // that university's allowed domain (derived from University.ContactEmail domain).
+    // This prevents registering gmail.com under an institutional university.
+    if (universityId != null) {
+      const uni = await universityService.getById(Number(universityId));
+      if (!uni) {
+        return res.status(400).json({ success: false, error: 'Invalid universityId' });
+      }
+      const expectedDomain = emailDomain(uni?.ContactEmail);
+      const studentDomain = emailDomain(email);
+      if (expectedDomain && studentDomain && !studentDomain.endsWith(expectedDomain)) {
+        return res.status(400).json({ success: false, error: 'Email domain must match selected university' });
+      }
+    }
+
     const passwordHash = await authService.hashPassword(password);
     let created = await userService.createUser({
       email,

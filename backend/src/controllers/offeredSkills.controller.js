@@ -4,10 +4,13 @@
  */
 
 const offeredSkillService = require('../services/offeredSkill.service');
+const quizService = require('../services/skillQuiz.service');
 
 function getStudentId(req) {
-  if (req.user?.role !== 'student') return null;
-  return req.user.UserID;
+  if (String(req.user?.role ?? '').toLowerCase() !== 'student') return null;
+  const id = req.user?.UserID ?? req.user?.userId ?? req.user?.id;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : null;
 }
 
 function toApi(row) {
@@ -63,9 +66,23 @@ async function create(req, res) {
     if (!studentId) {
       return res.status(403).json({ success: false, error: 'Only students can create offers' });
     }
+
+    const skillId = Number(req.body.skillId);
+    if (!Number.isFinite(skillId) || skillId < 1) {
+      return res.status(400).json({ success: false, error: 'Invalid skillId' });
+    }
+
+    const passed = await quizService.hasPassed(studentId, skillId);
+    if (!passed) {
+      return res.status(403).json({
+        success: false,
+        error: 'You must pass the skill quiz before offering this skill.',
+      });
+    }
+
     const created = await offeredSkillService.create({
       studentId,
-      skillId: req.body.skillId,
+      skillId,
       isPaid: req.body.isPaid,
       pricePerHour: req.body.pricePerHour,
     });
@@ -87,6 +104,16 @@ async function update(req, res) {
     if (!allowed) {
       return res.status(403).json({ success: false, error: 'Not your offer' });
     }
+
+    const existing = await offeredSkillService.getById(id);
+    const skillId = Number(existing?.skillId ?? existing?.SkillID ?? req.body?.skillId);
+    if (Number.isFinite(skillId) && skillId > 0) {
+      const passed = await quizService.hasPassed(studentId, skillId);
+      if (!passed) {
+        return res.status(403).json({ success: false, error: 'You must pass the skill quiz before offering this skill.' });
+      }
+    }
+
     const updated = await offeredSkillService.update(id, req.body);
     if (!updated) {
       return res.status(404).json({ success: false, error: 'Offer not found' });

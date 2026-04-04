@@ -8,6 +8,7 @@ const { body, validationResult } = require('express-validator');
 const transactionsController = require('../../controllers/transactions.controller');
 const { requireAuth } = require('../../middleware/auth.middleware');
 const { requireRoles } = require('../../middleware/rbac.middleware');
+const { requireStudentVerified } = require('../../middleware/requireStudentVerified.middleware');
 
 const router = express.Router();
 
@@ -55,6 +56,7 @@ router.post(
   '/match-request',
   requireAuth,
   requireRoles('student'),
+  requireStudentVerified,
   matchRequestValidators,
   handleValidation,
   transactionsController.matchRequest
@@ -65,6 +67,7 @@ router.post(
   '/paid-exchange',
   requireAuth,
   requireRoles('student'),
+  requireStudentVerified,
   paidExchangeValidators,
   handleValidation,
   transactionsController.paidExchange
@@ -75,6 +78,7 @@ router.post(
   '/confirm-form2',
   requireAuth,
   requireRoles('student'),
+  requireStudentVerified,
   confirmForm2Validators,
   handleValidation,
   transactionsController.confirmForm2

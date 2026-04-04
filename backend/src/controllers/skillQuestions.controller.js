@@ -5,14 +5,14 @@
 
 const skillQuestionService = require('../services/skillQuestion.service');
 
-function toApi(row, options = []) {
+function toApi(row, options = [], { hideCorrect = false } = {}) {
   if (!row) return null;
   const out = {
     id: row.QuestionID,
     skillId: row.SkillID,
     skillName: row.SkillName,
     questionText: row.QuestionText,
-    correctAnswer: row.CorrectAnswer,
+    ...(hideCorrect ? {} : { correctAnswer: row.CorrectAnswer }),
     points: row.Points,
     createdAt: row.CreatedAt,
   };
@@ -20,7 +20,7 @@ function toApi(row, options = []) {
     out.options = options.map((o) => ({
       optionKey: o.OptionKey,
       optionText: o.OptionText,
-      isCorrect: Boolean(o.IsCorrect),
+      ...(hideCorrect ? {} : { isCorrect: Boolean(o.IsCorrect) }),
     }));
   }
   return out;
@@ -33,7 +33,8 @@ async function list(req, res) {
       return res.status(400).json({ success: false, error: 'skillId query is required' });
     }
     const rows = await skillQuestionService.getBySkill(skillId);
-    res.status(200).json({ success: true, data: rows.map((r) => toApi(r)) });
+    const hideCorrect = String(req.user?.role ?? '').toLowerCase() === 'student';
+    res.status(200).json({ success: true, data: rows.map((r) => toApi(r, [], { hideCorrect })) });
   } catch (err) {
     console.error('skillQuestions.list', err);
     res.status(500).json({ success: false, error: 'Failed to list questions' });
@@ -48,7 +49,8 @@ async function get(req, res) {
       return res.status(404).json({ success: false, error: 'Question not found' });
     }
     const options = row.options || [];
-    res.status(200).json({ success: true, data: toApi(row, options) });
+    const hideCorrect = String(req.user?.role ?? '').toLowerCase() === 'student';
+    res.status(200).json({ success: true, data: toApi(row, options, { hideCorrect }) });
   } catch (err) {
     console.error('skillQuestions.get', err);
     res.status(500).json({ success: false, error: 'Failed to get question' });
