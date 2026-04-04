@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 /**
  * Student's offered skills: list (mine), skills catalog, create / update / delete.
@@ -17,7 +18,7 @@ export function useOfferedSkills() {
       const res = await api('/api/v1/offered-skills?mine=true');
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load your offers');
+      setError(getUserFacingMessage(e, 'Failed to load your offers'));
       setItems([]);
     } finally {
       setLoading(false);

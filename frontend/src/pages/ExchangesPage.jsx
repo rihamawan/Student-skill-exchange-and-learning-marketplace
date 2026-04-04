@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ErrorState } from '../components/feedback/ErrorState';
+import { LoadingState } from '../components/feedback/LoadingState';
 import { useStudentExchanges } from '../hooks/useStudentExchanges';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -35,7 +38,7 @@ export function ExchangesPage() {
     try {
       await updateStatus(row.id, next);
     } catch (e) {
-      setActionError(e.message || 'Could not update status');
+      setActionError(getUserFacingMessage(e, 'Could not update status'));
     }
   }
 
@@ -43,7 +46,7 @@ export function ExchangesPage() {
     return (
       <div className="crud-page">
         <h1>Exchanges</h1>
-        <p className="muted">Loading…</p>
+        <LoadingState label="Loading…" />
       </div>
     );
   }
@@ -52,12 +55,7 @@ export function ExchangesPage() {
     return (
       <div className="crud-page">
         <h1>Exchanges</h1>
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-        <button type="button" className="btn-secondary" onClick={() => reload()}>
-          Retry
-        </button>
+        <ErrorState message={error} onRetry={() => void reload()} />
       </div>
     );
   }

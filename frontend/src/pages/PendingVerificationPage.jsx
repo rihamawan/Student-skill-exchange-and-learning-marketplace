@@ -6,10 +6,7 @@ export function PendingVerificationPage({ message }) {
   return (
     <div className="crud-page">
       <h1>Pending verification</h1>
-      <p className="muted">
-        Your account is registered but not approved by your university admin yet. You can’t use the student portal
-        until verification is completed.
-      </p>
+      <p className="muted">Your account is pending admin approval — the student portal stays locked until then.</p>
 
       {message ? (
         <p className="form-error" role="alert">

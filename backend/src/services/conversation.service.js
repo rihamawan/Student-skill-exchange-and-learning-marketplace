@@ -51,7 +51,7 @@ async function getOrCreate(student1Id, student2Id) {
   const { matched } = await matchingService.evaluateMutualMatch(student1Id, student2Id);
   if (!matched) {
     const err = new Error(
-      'No mutual match yet. Both students need complementary offer/request skills with the same mode (free exchange or paid).'
+      'No match yet. For free exchange, both sides need a skill swap; for paid lessons, one side pays to learn what the other offers (same paid/free mode).'
     );
     err.code = 'MUTUAL_MATCH_REQUIRED';
     throw err;

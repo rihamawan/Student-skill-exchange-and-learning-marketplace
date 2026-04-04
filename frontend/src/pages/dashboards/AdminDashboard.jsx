@@ -4,7 +4,6 @@ export function AdminDashboard() {
   return (
     <div>
       <h1>University admin</h1>
-      <p className="muted">Manage students and data for your university.</p>
       <div className="dashboard-grid">
         <Link className="dash-card" to="/admin/students">
           <h2>Students</h2>

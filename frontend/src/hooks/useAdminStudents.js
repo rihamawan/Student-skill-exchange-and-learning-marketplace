@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 /**
  * University admin: students at my university + verify toggle.
@@ -17,7 +18,7 @@ export function useAdminStudents() {
       const res = await api('/api/v1/admin/students');
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load students');
+      setError(getUserFacingMessage(e, 'Failed to load students'));
       setItems([]);
     } finally {
       setLoading(false);
@@ -39,7 +40,7 @@ export function useAdminStudents() {
         });
         await load();
       } catch (e) {
-        setError(e.message || 'Could not update verification');
+        setError(getUserFacingMessage(e, 'Could not update verification'));
       } finally {
         setSavingId(null);
       }

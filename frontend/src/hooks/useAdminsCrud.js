@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 /**
  * Superadmin: admin users CRUD.
@@ -22,7 +23,7 @@ export function useAdminsCrud() {
       setAdmins(Array.isArray(aRes.data) ? aRes.data : []);
       setUniversities(Array.isArray(uRes.data) ? uRes.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load admins');
+      setError(getUserFacingMessage(e, 'Failed to load admins'));
       setAdmins([]);
     } finally {
       setLoading(false);
@@ -41,7 +42,7 @@ export function useAdminsCrud() {
         await api('/api/v1/admins', { method: 'POST', body });
         await load();
       } catch (e) {
-        setError(e.message || 'Create failed');
+        setError(getUserFacingMessage(e, 'Create failed'));
         throw e;
       } finally {
         setBusy(false);
@@ -58,7 +59,7 @@ export function useAdminsCrud() {
         await api(`/api/v1/admins/${id}`, { method: 'PUT', body });
         await load();
       } catch (e) {
-        setError(e.message || 'Update failed');
+        setError(getUserFacingMessage(e, 'Update failed'));
         throw e;
       } finally {
         setBusy(false);
@@ -75,7 +76,7 @@ export function useAdminsCrud() {
         await api(`/api/v1/admins/${id}`, { method: 'DELETE' });
         await load();
       } catch (e) {
-        setError(e.message || 'Remove failed');
+        setError(getUserFacingMessage(e, 'Remove failed'));
         throw e;
       } finally {
         setBusy(false);

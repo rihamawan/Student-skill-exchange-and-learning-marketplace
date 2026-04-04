@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { LoadingState } from '../feedback/LoadingState';
 import { api } from '../../lib/api';
+import { getUserFacingMessage } from '../../lib/apiErrors';
 import { PendingVerificationPage } from '../../pages/PendingVerificationPage';
 
 export function RequireStudentVerified({ children }) {
@@ -20,7 +22,7 @@ export function RequireStudentVerified({ children }) {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e.message || 'Failed to load verification state');
+          setError(getUserFacingMessage(e, 'Failed to load verification state'));
           setVerified(false);
         }
       } finally {
@@ -35,7 +37,7 @@ export function RequireStudentVerified({ children }) {
   if (loading) {
     return (
       <div className="page-loading">
-        <p>Loading…</p>
+        <LoadingState label="Loading…" />
       </div>
     );
   }

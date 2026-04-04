@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 export function RegisterPage() {
   const { register, user, ready, dashboardPathForRole } = useAuth();
@@ -54,7 +55,7 @@ export function RegisterPage() {
         universityId: universityId || undefined,
       });
     } catch (err) {
-      setError(err.message || 'Registration failed');
+      setError(getUserFacingMessage(err, 'Registration failed'));
     } finally {
       setSubmitting(false);
     }

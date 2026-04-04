@@ -70,7 +70,6 @@ export function UniversitiesManagePage() {
   return (
     <div className="crud-page">
       <h1>Universities</h1>
-      <p className="muted">Create and maintain universities (registration and admin scope).</p>
       {error ? (
         <p className="form-error" role="alert">
           {error}

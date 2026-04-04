@@ -158,6 +158,57 @@ a {
   color: var(--muted);
 }
 
+.backend-status-banner {
+  background: #fff8e6;
+  border-bottom: 1px solid #f0d060;
+  color: #5c4a00;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  text-align: center;
+}
+
+.backend-status-banner__retry {
+  font: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--primary);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.loading-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.loading-state__spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: loading-spin 0.7s linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-state .form-error {
+  margin-bottom: 0.5rem;
+}
+
 /* App shell */
 .app-shell {
   display: flex;
@@ -460,11 +511,30 @@ a {
   font-weight: 700;
 }
 
+.reports-page .report-uni-table-section {
+  margin: 0 0 1.25rem;
+}
+
+.reports-page .report-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
 .report-charts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.25rem;
   margin-top: 0.5rem;
+}
+
+.reports-page .report-chart--wide {
+  grid-column: 1 / -1;
+}
+
+.report-chart-legend-hint {
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.75rem;
 }
 
 .report-chart {
@@ -477,6 +547,17 @@ a {
 .report-chart-title {
   margin: 0 0 0.75rem;
   font-size: 1rem;
+}
+
+.report-chart-sub {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.8rem;
+}
+
+.report-chart-recharts {
+  width: 100%;
+  min-height: 280px;
+  margin-top: 0.25rem;
 }
 
 .report-bar-list {
@@ -580,6 +661,18 @@ label.inline {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.request-peers-subrow td {
+  padding-top: 0.5rem;
+  padding-bottom: 1rem;
+  vertical-align: top;
+  background: rgba(0, 0, 0, 0.03);
+  border-top: none;
+}
+
+.request-peer-matches {
+  margin: 0;
 }
 
 .inline-num {

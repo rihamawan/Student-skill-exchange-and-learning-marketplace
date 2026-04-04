@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 /** @param {object} conv @param {number|null} myUserId */
 export function peerFromConversation(conv, myUserId) {
@@ -41,7 +42,7 @@ export function useTransactionDemo() {
       setOpenRequests(Array.isArray(or.data) ? or.data : []);
       setExchanges(Array.isArray(ex.data) ? ex.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load data');
+      setError(getUserFacingMessage(e, 'Failed to load data'));
     } finally {
       setLoading(false);
     }

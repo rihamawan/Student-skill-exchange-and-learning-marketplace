@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 /**
  * Superadmin: full CRUD for universities.
@@ -17,7 +18,7 @@ export function useUniversitiesCrud() {
       const res = await api('/api/v1/universities', { skipAuthRedirect: true });
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load universities');
+      setError(getUserFacingMessage(e, 'Failed to load universities'));
       setItems([]);
     } finally {
       setLoading(false);
@@ -36,7 +37,7 @@ export function useUniversitiesCrud() {
         await api('/api/v1/universities', { method: 'POST', body: payload });
         await load();
       } catch (e) {
-        setError(e.message || 'Create failed');
+        setError(getUserFacingMessage(e, 'Create failed'));
         throw e;
       } finally {
         setBusy(false);
@@ -53,7 +54,7 @@ export function useUniversitiesCrud() {
         await api(`/api/v1/universities/${id}`, { method: 'PUT', body: payload });
         await load();
       } catch (e) {
-        setError(e.message || 'Update failed');
+        setError(getUserFacingMessage(e, 'Update failed'));
         throw e;
       } finally {
         setBusy(false);
@@ -70,7 +71,7 @@ export function useUniversitiesCrud() {
         await api(`/api/v1/universities/${id}`, { method: 'DELETE' });
         await load();
       } catch (e) {
-        setError(e.message || 'Delete failed');
+        setError(getUserFacingMessage(e, 'Delete failed'));
         throw e;
       } finally {
         setBusy(false);

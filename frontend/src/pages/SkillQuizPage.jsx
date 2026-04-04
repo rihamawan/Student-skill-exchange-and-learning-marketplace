@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 function parseSkillId(skillId) {
   const n = Number(skillId);
@@ -51,7 +52,7 @@ export function SkillQuizPage() {
       setQuestions(Array.isArray(data.questions) ? data.questions : []);
       setTotalPossible(Number(data.totalPossible ?? 0));
     } catch (e) {
-      setError(e.message || 'Failed to load quiz');
+      setError(getUserFacingMessage(e, 'Failed to load quiz'));
       setQuestions([]);
     } finally {
       setLoading(false);
@@ -113,7 +114,7 @@ export function SkillQuizPage() {
             navigate('/student/offered-skills');
             return;
           } catch (e2) {
-            setError(e2.message || 'Could not create offer after quiz pass');
+            setError(getUserFacingMessage(e2, 'Could not create offer after quiz pass'));
           } finally {
             setAutoSaving(false);
           }
@@ -122,7 +123,7 @@ export function SkillQuizPage() {
         setResultMsg(`Not passed. Score: ${data.score}/${data.totalPossible}. Try again.`);
       }
     } catch (e2) {
-      setError(e2.message || 'Quiz submit failed');
+      setError(getUserFacingMessage(e2, 'Quiz submit failed'));
     } finally {
       setSubmitting(false);
     }

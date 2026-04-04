@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 export function LoginPage() {
   const { login, user, ready, dashboardPathForRole } = useAuth();
@@ -25,7 +26,7 @@ export function LoginPage() {
     try {
       await login(email, password, from || undefined);
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(getUserFacingMessage(err, 'Login failed'));
     } finally {
       setSubmitting(false);
     }

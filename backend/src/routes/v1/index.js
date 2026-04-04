@@ -76,7 +76,7 @@ router.use('/reviews', reviewsRoutes);
 router.use('/portfolio', portfolioRoutes);
 router.use('/payments', paymentsRoutes);
 
-// Skill questions & evaluations (read-only API)
+// Skill questions (admin/superadmin CRUD); skill evaluations (GET only — rows from skill quiz)
 router.use('/skill-questions', skillQuestionsRoutes);
 router.use('/skill-evaluations', skillEvaluationsRoutes);
 

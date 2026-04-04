@@ -29,7 +29,6 @@ export function AdminStudentsPage() {
   return (
     <div className="crud-page">
       <h1>Students</h1>
-      <p className="muted">Students registered at your university. Mark verified when identity is confirmed.</p>
       {error ? (
         <p className="form-error" role="alert">
           {error}

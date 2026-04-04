@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
+import { ErrorState } from '../components/feedback/ErrorState';
+import { LoadingState } from '../components/feedback/LoadingState';
 import { getTokenUserId } from '../lib/jwtPayload';
+import { getUserFacingMessage } from '../lib/apiErrors';
 import { peerFromConversation, useTransactionDemo } from '../hooks/useTransactionDemo';
 
 function combineDateTime(date, time) {
@@ -153,8 +156,7 @@ export function TransactionDemoPage() {
         `Match created. Exchange #${d?.exchangeId ?? '?'}, session #${d?.sessionId ?? '?'}.`
       );
     } catch (err) {
-      const msg = err.message || 'Match request failed';
-      setMatchErr(msg + rollbackHint(err.status));
+      setMatchErr(getUserFacingMessage(err, 'Match request failed') + rollbackHint(err.status));
     } finally {
       setMatchBusy(false);
     }
@@ -185,7 +187,7 @@ export function TransactionDemoPage() {
       setPaidMsg('Paid exchange and payment recorded.');
       reload();
     } catch (err) {
-      setPaidErr((err.message || 'Paid exchange failed') + rollbackHint(err.status));
+      setPaidErr(getUserFacingMessage(err, 'Paid exchange failed') + rollbackHint(err.status));
     } finally {
       setPaidBusy(false);
     }
@@ -195,7 +197,7 @@ export function TransactionDemoPage() {
     return (
       <div className="crud-page">
         <h1>Transaction demo</h1>
-        <p className="muted">Loading…</p>
+        <LoadingState label="Loading…" />
       </div>
     );
   }
@@ -204,12 +206,7 @@ export function TransactionDemoPage() {
     return (
       <div className="crud-page">
         <h1>Transaction demo</h1>
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-        <button type="button" className="btn-secondary" onClick={() => reload()}>
-          Retry
-        </button>
+        <ErrorState message={error} onRetry={() => void reload()} />
       </div>
     );
   }
@@ -304,10 +301,8 @@ export function TransactionDemoPage() {
                 </select>
                 {offerId && peerId != null && !peerRequestsForTeach.length ? (
                   <span className="muted small">
-                    No open request from your peer for <strong>{selectedOfferSkillName || 'this skill'}</strong>. They
-                    must add it under <strong>Skills I want</strong> on Match profile (status open), with the same
-                    free/paid mode as their expectation — or switch to <strong>I learn</strong> if you are the learner
-                    for this booking.
+                    Peer has no open request for <strong>{selectedOfferSkillName || 'this skill'}</strong> — add under{' '}
+                    <strong>Requested skills</strong> or try <strong>I learn</strong>.
                   </span>
                 ) : null}
               </div>
@@ -351,9 +346,8 @@ export function TransactionDemoPage() {
                 </select>
                 {requestId && peerId != null && !peerOffersForLearn.length ? (
                   <span className="muted small">
-                    No offer from your peer for <strong>{selectedMyRequestSkillName || 'this skill'}</strong>. They must
-                    list it under <strong>Skills I am offering</strong> on Match profile — or use <strong>I teach</strong>{' '}
-                    if you are teaching them instead.
+                    Peer offers no <strong>{selectedMyRequestSkillName || 'this skill'}</strong> — check{' '}
+                    <strong>Offered skills</strong> or switch to <strong>I teach</strong>.
                   </span>
                 ) : null}
               </div>
@@ -391,18 +385,12 @@ export function TransactionDemoPage() {
           <button type="submit" className="btn-primary" disabled={matchBusy || !matchRequestReady}>
             {matchBusy ? 'Running transaction…' : 'Run match-request'}
           </button>
-          {!matchRequestReady && !matchBusy ? (
-            <p className="muted small">Complete both skill rows, date, and times. The button stays off until everything lines up.</p>
-          ) : null}
         </form>
       </section>
 
       <section className="crud-form-card">
         <h2>2) Paid exchange + payment</h2>
-        <p className="muted small">
-          Converts an existing <strong>free</strong> exchange to paid and records a payment. Choose an exchange you are
-          part of (typically <code>Exchange</code> type).
-        </p>
+        <p className="muted small">Record payment on an exchange you&apos;re in.</p>
         <form className="stack" onSubmit={handlePaidSubmit}>
           <div className="field">
             <label htmlFor="td-ex">Exchange</label>

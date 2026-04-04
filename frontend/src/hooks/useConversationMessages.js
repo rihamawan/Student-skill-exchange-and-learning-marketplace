@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 function sortByCreatedAt(a, b) {
   const ta = new Date(a.createdAt).getTime();
@@ -27,7 +28,7 @@ export function useConversationMessages() {
       const list = Array.isArray(res.data) ? res.data : [];
       setMessages([...list].sort(sortByCreatedAt));
     } catch (e) {
-      setError(e.message || 'Could not load messages');
+      setError(getUserFacingMessage(e, 'Could not load messages'));
       setMessages([]);
     } finally {
       setLoading(false);

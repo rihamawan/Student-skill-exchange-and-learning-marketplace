@@ -67,7 +67,6 @@ export function SkillsManagePage() {
   return (
     <div className="crud-page">
       <h1>Skills catalog</h1>
-      <p className="muted">Manage skills (used in offers, requests, and matching).</p>
       {error ? (
         <p className="form-error" role="alert">
           {error}

@@ -1,3 +1,6 @@
+import { Fragment } from 'react';
+import { RequestPeersForRow } from './RequestPeersForRow';
+
 export function RequestedSkillsTable({ items, onEdit, onDelete }) {
   if (!items.length) {
     return <p className="muted">No requests yet. Add one above.</p>;
@@ -18,23 +21,36 @@ export function RequestedSkillsTable({ items, onEdit, onDelete }) {
         </thead>
         <tbody>
           {items.map((row) => (
-            <tr key={row.id}>
-              <td>{row.skillName}</td>
-              <td>{row.categoryName ?? '—'}</td>
-              <td>{row.preferredTime ?? '—'}</td>
-              <td>{row.preferredMode === 'Paid' ? 'Paid' : 'Free exchange'}</td>
-              <td>
-                <span className={`status-pill status-${row.status}`}>{row.status}</span>
-              </td>
-              <td className="crud-actions">
-                <button type="button" className="link-button" onClick={() => onEdit(row)}>
-                  Edit status
-                </button>
-                <button type="button" className="link-button danger" onClick={() => onDelete(row)}>
-                  Delete
-                </button>
-              </td>
-            </tr>
+            <Fragment key={row.id}>
+              <tr>
+                <td>{row.skillName}</td>
+                <td>{row.categoryName ?? '—'}</td>
+                <td>{row.preferredTime ?? '—'}</td>
+                <td>{row.preferredMode === 'Paid' ? 'Paid' : 'Free exchange'}</td>
+                <td>
+                  <span className={`status-pill status-${row.status}`}>{row.status}</span>
+                </td>
+                <td className="crud-actions">
+                  <button type="button" className="link-button" onClick={() => onEdit(row)}>
+                    Edit status
+                  </button>
+                  <button type="button" className="link-button danger" onClick={() => onDelete(row)}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+              {row.status === 'open' ? (
+                <tr className="request-peers-subrow">
+                  <td colSpan={6}>
+                    <RequestPeersForRow
+                      requestId={row.id}
+                      skillName={row.skillName ?? 'this skill'}
+                      preferredMode={row.preferredMode}
+                    />
+                  </td>
+                </tr>
+              ) : null}
+            </Fragment>
           ))}
         </tbody>
       </table>

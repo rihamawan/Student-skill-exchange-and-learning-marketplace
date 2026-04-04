@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 /**
  * Student's requested skills: list mine, skills catalog, create, PATCH status, delete.
@@ -17,7 +18,7 @@ export function useRequestedSkills() {
       const res = await api('/api/v1/requested-skills?mine=true');
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load your requests');
+      setError(getUserFacingMessage(e, 'Failed to load your requests'));
       setItems([]);
     } finally {
       setLoading(false);

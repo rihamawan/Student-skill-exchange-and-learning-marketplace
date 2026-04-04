@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 import { useConversationSocket } from './useConversationSocket';
 
 /**
@@ -46,7 +47,7 @@ export function useConfirmExchangeForm(conversationId) {
       const res = await api(`/api/v1/matching/conversations/${cid}/form2-eligibility`);
       setEligibility(res.data ?? null);
     } catch (e) {
-      setLoadError(e.message || 'Could not load options');
+      setLoadError(getUserFacingMessage(e, 'Could not load options'));
       setEligibility(null);
     } finally {
       setLoading(false);
@@ -80,7 +81,7 @@ export function useConfirmExchangeForm(conversationId) {
         });
         await reload();
       } catch (e) {
-        setReadinessError(e.message || 'Could not update readiness');
+        setReadinessError(getUserFacingMessage(e, 'Could not update readiness'));
       } finally {
         setReadinessSaving(false);
       }
@@ -180,7 +181,7 @@ export function useConfirmExchangeForm(conversationId) {
       await api('/api/v1/transactions/confirm-form2', { method: 'POST', body });
       navigate('/student/exchanges');
     } catch (e) {
-      setSubmitError(e.message || 'Submit failed');
+      setSubmitError(getUserFacingMessage(e, 'Submit failed'));
     } finally {
       setSubmitting(false);
     }

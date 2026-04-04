@@ -4,7 +4,6 @@ export function SuperadminDashboard() {
   return (
     <div>
       <h1>Platform superadmin</h1>
-      <p className="muted">Global configuration and administration.</p>
       <div className="dashboard-grid">
         <Link className="dash-card" to="/superadmin/universities">
           <h2>Universities</h2>

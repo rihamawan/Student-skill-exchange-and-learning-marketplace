@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
+import { ErrorState } from '../components/feedback/ErrorState';
+import { LoadingState } from '../components/feedback/LoadingState';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 import { getTokenUserId } from '../lib/jwtPayload';
 import { useConversationMessages } from '../hooks/useConversationMessages';
 import { useConversationSocket } from '../hooks/useConversationSocket';
@@ -47,26 +50,24 @@ export function ConversationsPage() {
 
   const { socketState, socketError } = useConversationSocket(selectedId, onSocketMessage);
 
-  // Refetch when logged-in user changes (e.g. another tab logged in — shared localStorage).
-  useEffect(() => {
-    let cancelled = false;
+  const loadConversations = useCallback(async () => {
     setSelectedId(null);
-    (async () => {
-      setListLoading(true);
-      setListError('');
-      try {
-        const res = await api('/api/v1/conversations');
-        if (!cancelled) setConversations(Array.isArray(res.data) ? res.data : []);
-      } catch (e) {
-        if (!cancelled) setListError(e.message || 'Could not load conversations');
-      } finally {
-        if (!cancelled) setListLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    setListLoading(true);
+    setListError('');
+    try {
+      const res = await api('/api/v1/conversations');
+      setConversations(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      setListError(getUserFacingMessage(e, 'Could not load conversations'));
+      setConversations([]);
+    } finally {
+      setListLoading(false);
+    }
   }, [user?.id]);
+
+  useEffect(() => {
+    void loadConversations();
+  }, [loadConversations]);
 
   useEffect(() => {
     if (conversations.length && selectedId == null) {
@@ -86,7 +87,7 @@ export function ConversationsPage() {
       await sendMessage(selectedId, draft);
       setDraft('');
     } catch (err) {
-      setSendError(err.message || 'Send failed');
+      setSendError(getUserFacingMessage(err, 'Send failed'));
     }
   }
 
@@ -94,7 +95,7 @@ export function ConversationsPage() {
     return (
       <div>
         <h1>Conversations</h1>
-        <p className="muted">Loading your conversations…</p>
+        <LoadingState label="Loading your conversations…" />
       </div>
     );
   }
@@ -103,10 +104,7 @@ export function ConversationsPage() {
     return (
       <div>
         <h1>Conversations</h1>
-        <p className="form-error" role="alert">
-          {listError}
-        </p>
-        <p className="muted">If the API is down, start the backend and try again.</p>
+        <ErrorState message={listError} onRetry={() => void loadConversations()} />
       </div>
     );
   }

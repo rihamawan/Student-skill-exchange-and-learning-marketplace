@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 const DIFFICULTY = ['beginner', 'intermediate', 'advanced'];
 
@@ -24,7 +25,7 @@ export function useSkillsAdmin() {
       setCategories(Array.isArray(catRes.data) ? catRes.data : []);
       setSkills(Array.isArray(skRes.data) ? skRes.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load skills');
+      setError(getUserFacingMessage(e, 'Failed to load skills'));
       setCategories([]);
       setSkills([]);
     } finally {
@@ -44,7 +45,7 @@ export function useSkillsAdmin() {
         await api('/api/v1/skills', { method: 'POST', body });
         await load();
       } catch (e) {
-        setError(e.message || 'Create failed');
+        setError(getUserFacingMessage(e, 'Create failed'));
         throw e;
       } finally {
         setBusy(false);
@@ -61,7 +62,7 @@ export function useSkillsAdmin() {
         await api(`/api/v1/skills/${id}`, { method: 'PUT', body });
         await load();
       } catch (e) {
-        setError(e.message || 'Update failed');
+        setError(getUserFacingMessage(e, 'Update failed'));
         throw e;
       } finally {
         setBusy(false);
@@ -78,7 +79,7 @@ export function useSkillsAdmin() {
         await api(`/api/v1/skills/${id}`, { method: 'DELETE' });
         await load();
       } catch (e) {
-        setError(e.message || 'Delete failed');
+        setError(getUserFacingMessage(e, 'Delete failed'));
         throw e;
       } finally {
         setBusy(false);

@@ -15,10 +15,10 @@ async function postForm1(req, res) {
   try {
     const studentId = getStudentId(req);
     if (!studentId) {
-      return res.status(403).json({ success: false, error: 'Only students can submit the match form' });
+      return res.status(403).json({ success: false, error: 'Only students can save profile' });
     }
     await matchingService.saveMatchForm1(studentId, req.body);
-    res.status(200).json({ success: true, data: { message: 'Match profile saved.' } });
+    res.status(200).json({ success: true, data: { message: 'Profile saved.' } });
   } catch (err) {
     if (err.code === 'UNIVERSITY_NOT_FOUND' || err.code === 'USER_NOT_FOUND' || err.code === 'NOT_STUDENT') {
       return res.status(404).json({ success: false, error: err.message });
@@ -27,7 +27,7 @@ async function postForm1(req, res) {
       return res.status(400).json({ success: false, error: err.message });
     }
     console.error('matching.postForm1', err);
-    res.status(500).json({ success: false, error: 'Failed to save match profile' });
+    res.status(500).json({ success: false, error: 'Failed to save profile' });
   }
 }
 
@@ -64,6 +64,31 @@ async function getMatches(req, res) {
   }
 }
 
+/** Mutual matches for one open requested skill (same rules as global list, scoped to that request row). */
+async function getMatchesForRequest(req, res) {
+  try {
+    const studentId = getStudentId(req);
+    if (!studentId) {
+      return res.status(403).json({ success: false, error: 'Only students can list matches' });
+    }
+    const requestId = Number(req.params.requestId);
+    if (!Number.isFinite(requestId) || requestId < 1) {
+      return res.status(400).json({ success: false, error: 'Invalid request id' });
+    }
+    const list = await matchingService.listMutualMatchesForRequest(studentId, requestId);
+    res.status(200).json({ success: true, data: list });
+  } catch (err) {
+    if (err.code === 'REQUEST_NOT_FOUND') {
+      return res.status(404).json({ success: false, error: err.message });
+    }
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ success: false, error: err.message });
+    }
+    console.error('matching.getMatchesForRequest', err);
+    res.status(500).json({ success: false, error: 'Failed to load matches for this request' });
+  }
+}
+
 async function getForm2Eligibility(req, res) {
   try {
     const studentId = getStudentId(req);
@@ -85,4 +110,4 @@ async function getForm2Eligibility(req, res) {
   }
 }
 
-module.exports = { postForm1, getCheck, getMatches, getForm2Eligibility };
+module.exports = { postForm1, getCheck, getMatches, getMatchesForRequest, getForm2Eligibility };

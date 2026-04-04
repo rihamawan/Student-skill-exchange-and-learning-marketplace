@@ -1,6 +1,7 @@
 /**
  * src/controllers/skillEvaluations.controller.js
- * SkillEvaluation: list by student or skill, get one. Read-only for API.
+ * SkillEvaluation: list and get only. Admins/superadmins view results; students see only their own.
+ * New evaluations are created by the skill-quiz flow, not via this controller.
  */
 
 const skillEvaluationService = require('../services/skillEvaluation.service');
@@ -64,8 +65,27 @@ async function list(req, res) {
       return res.status(200).json({ success: true, data: rows.map(toApi) });
     }
     if (skillId) {
-      const rows = await skillEvaluationService.getBySkill(skillId);
-      return res.status(200).json({ success: true, data: rows.map(toApi) });
+      if (role === 'student') {
+        if (me == null) {
+          return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+        }
+        const rows = await skillEvaluationService.getByStudent(me);
+        const filtered = rows.filter((r) => Number(r.SkillID) === skillId);
+        return res.status(200).json({ success: true, data: filtered.map(toApi) });
+      }
+      if (role === 'admin') {
+        const universityId = req.user?.adminUniversityID;
+        if (universityId == null) {
+          return res.status(403).json({ success: false, error: 'Admin university not set' });
+        }
+        const rows = await skillEvaluationService.getBySkillForUniversity(skillId, universityId);
+        return res.status(200).json({ success: true, data: rows.map(toApi) });
+      }
+      if (role === 'superadmin') {
+        const rows = await skillEvaluationService.getBySkill(skillId);
+        return res.status(200).json({ success: true, data: rows.map(toApi) });
+      }
+      return res.status(403).json({ success: false, error: 'Insufficient permissions' });
     }
     res.status(400).json({ success: false, error: 'Provide studentId or skillId' });
   } catch (err) {
@@ -101,56 +121,4 @@ async function get(req, res) {
   }
 }
 
-async function create(req, res) {
-  try {
-    const role = String(req.user?.role ?? '').toLowerCase();
-    if (role !== 'admin' && role !== 'superadmin') {
-      return res.status(403).json({ success: false, error: 'Admin or superadmin only' });
-    }
-    const { studentId, skillId } = req.body;
-    const adminId = role === 'superadmin' ? null : req.user?.UserID;
-    if (role === 'admin') {
-      const inUni = await userService.isStudentAtUniversity(studentId, req.user?.adminUniversityID);
-      if (!inUni) {
-        return res.status(403).json({ success: false, error: 'Student not in your university' });
-      }
-    }
-    const created = await skillEvaluationService.create(studentId, skillId, adminId);
-    res.status(201).json({ success: true, data: toApi(created) });
-  } catch (err) {
-    console.error('skillEvaluations.create', err);
-    res.status(500).json({ success: false, error: 'Failed to create evaluation' });
-  }
-}
-
-async function update(req, res) {
-  try {
-    const role = String(req.user?.role ?? '').toLowerCase();
-    if (role !== 'admin' && role !== 'superadmin') {
-      return res.status(403).json({ success: false, error: 'Admin or superadmin only' });
-    }
-    const id = Number(req.params.id);
-    const row = await skillEvaluationService.getById(id);
-    if (!row) {
-      return res.status(404).json({ success: false, error: 'Evaluation not found' });
-    }
-    if (role === 'admin') {
-      const inUni = await userService.isStudentAtUniversity(row.StudentID, req.user?.adminUniversityID);
-      if (!inUni) {
-        return res.status(403).json({ success: false, error: 'Evaluation not in your university' });
-      }
-    }
-    const { status, score, totalPossible } = req.body;
-    const adminId = role === 'superadmin' ? null : req.user?.UserID;
-    const updated = await skillEvaluationService.update(id, { status, score, totalPossible, adminId });
-    if (!updated) {
-      return res.status(400).json({ success: false, error: 'Update failed' });
-    }
-    res.status(200).json({ success: true, data: toApi(updated) });
-  } catch (err) {
-    console.error('skillEvaluations.update', err);
-    res.status(500).json({ success: false, error: 'Failed to update evaluation' });
-  }
-}
-
-module.exports = { list, get, create, update };
+module.exports = { list, get };

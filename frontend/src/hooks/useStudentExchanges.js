@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 const STATUS_OPTIONS = ['pending', 'active', 'completed', 'cancelled'];
 
@@ -15,7 +16,7 @@ export function useStudentExchanges() {
       const res = await api('/api/v1/exchanges');
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      setError(e.message || 'Failed to load exchanges');
+      setError(getUserFacingMessage(e, 'Failed to load exchanges'));
       setItems([]);
     } finally {
       setLoading(false);

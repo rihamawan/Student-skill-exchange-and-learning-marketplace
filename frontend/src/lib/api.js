@@ -27,7 +27,15 @@ export async function api(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { ...rest, headers });
+  let res;
+  try {
+    res = await fetch(url, { ...rest, headers });
+  } catch (networkErr) {
+    const err = new Error('NETWORK_UNAVAILABLE');
+    err.code = 'NETWORK';
+    err.cause = networkErr;
+    throw err;
+  }
 
   if (!skipAuthRedirect && res.status === 401) {
     clearStoredAuth();

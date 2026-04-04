@@ -4,6 +4,7 @@ import { OfferedSkillsForm } from '../components/offered-skills/OfferedSkillsFor
 import { OfferedSkillsTable } from '../components/offered-skills/OfferedSkillsTable';
 import { useOfferedSkills } from '../hooks/useOfferedSkills';
 import { api } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 export function OfferedSkillsPage() {
   const { items, skills, loading, error, saving, createOffer, updateOffer, removeOffer } = useOfferedSkills();
@@ -94,7 +95,7 @@ export function OfferedSkillsPage() {
         await updateOffer(editingId, updateBody);
         resetForm();
       } catch (err) {
-        setActionError(err.message || 'Update failed');
+        setActionError(getUserFacingMessage(err, 'Update failed'));
       }
       return;
     }
@@ -114,7 +115,7 @@ export function OfferedSkillsPage() {
       await createOffer(createBody);
       resetForm();
     } catch (err) {
-      setActionError(err.message || 'Could not create offer');
+      setActionError(getUserFacingMessage(err, 'Could not create offer'));
     }
   }
 
@@ -125,7 +126,7 @@ export function OfferedSkillsPage() {
       await removeOffer(row.id);
       if (editingId === row.id) resetForm();
     } catch (err) {
-      setActionError(err.message || 'Delete failed');
+      setActionError(getUserFacingMessage(err, 'Delete failed'));
     }
   }
 
@@ -152,7 +153,7 @@ export function OfferedSkillsPage() {
   return (
     <div className="crud-page">
       <h1>Offered skills</h1>
-      <p className="muted">Skills you can teach others. Free exchange or hourly rate (PKR).</p>
+      <p className="muted">Skills you teach (free or PKR/hr).</p>
 
       <OfferedSkillsForm
         editingId={editingId}

@@ -53,7 +53,6 @@ export function AdminsManagePage() {
   return (
     <div className="crud-page">
       <h1>Admins</h1>
-      <p className="muted">Create university admins. Use sparingly for new superadmin accounts.</p>
       {error ? (
         <p className="form-error" role="alert">
           {error}

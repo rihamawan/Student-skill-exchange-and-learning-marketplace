@@ -34,9 +34,10 @@ async function getByStudent(studentId) {
 
 async function getBySkill(skillId) {
   const [rows] = await getPool().query(
-    `SELECT e.EvaluationID, e.StudentID, e.SkillID, e.Status, e.Score, e.TotalPossible, e.CreatedAt,
-            u.FullName AS StudentName
+    `SELECT e.EvaluationID, e.StudentID, e.SkillID, e.AdminID, e.Status, e.Score, e.TotalPossible, e.CreatedAt,
+            s.SkillName, u.FullName AS StudentName
      FROM SkillEvaluation e
+     JOIN Skill s ON s.SkillID = e.SkillID
      JOIN User u ON u.UserID = e.StudentID
      WHERE e.SkillID = ?
      ORDER BY e.CreatedAt DESC`,
@@ -45,50 +46,20 @@ async function getBySkill(skillId) {
   return rows;
 }
 
-async function create(studentId, skillId, adminId = null) {
-  const [result] = await getPool().query(
-    'INSERT INTO SkillEvaluation (StudentID, SkillID, AdminID, Status) VALUES (?, ?, ?, ?)',
-    [studentId, skillId, adminId, 'pending']
+/** Evaluations for a skill, only for students at the given university (university admin list). */
+async function getBySkillForUniversity(skillId, universityId) {
+  const [rows] = await getPool().query(
+    `SELECT e.EvaluationID, e.StudentID, e.SkillID, e.AdminID, e.Status, e.Score, e.TotalPossible, e.CreatedAt,
+            s.SkillName, u.FullName AS StudentName
+     FROM SkillEvaluation e
+     JOIN Skill s ON s.SkillID = e.SkillID
+     JOIN User u ON u.UserID = e.StudentID
+     JOIN Student st ON st.StudentID = e.StudentID
+     WHERE e.SkillID = ? AND st.UniversityID = ?
+     ORDER BY e.CreatedAt DESC`,
+    [skillId, universityId]
   );
-  return getById(result.insertId);
-}
-
-async function update(evaluationId, data) {
-  const { status, score, totalPossible, adminId } = data;
-  const updates = [];
-  const params = [];
-  if (status != null) {
-    updates.push('Status = ?');
-    params.push(status);
-  }
-  if (score != null) {
-    updates.push('Score = ?');
-    params.push(score);
-  }
-  if (totalPossible != null) {
-    updates.push('TotalPossible = ?');
-    params.push(totalPossible);
-  }
-  if (adminId !== undefined) {
-    updates.push('AdminID = ?');
-    params.push(adminId);
-  }
-  if (status === 'graded' || status === 'submitted') {
-    if (status === 'submitted') {
-      updates.push('SubmittedAt = COALESCE(SubmittedAt, NOW())');
-    }
-    if (status === 'graded') {
-      updates.push('SubmittedAt = COALESCE(SubmittedAt, NOW())');
-    }
-  }
-  if (updates.length === 0) return getById(evaluationId);
-  params.push(evaluationId);
-  const [result] = await getPool().query(
-    `UPDATE SkillEvaluation SET ${updates.join(', ')} WHERE EvaluationID = ?`,
-    params
-  );
-  if (result.affectedRows === 0) return null;
-  return getById(evaluationId);
+  return rows;
 }
 
 /** All evaluations (superadmin or admin uni-scoped via controller). */
@@ -120,4 +91,4 @@ async function getByUniversity(universityId) {
   return rows;
 }
 
-module.exports = { getById, getByStudent, getBySkill, getByUniversity, getAll, create, update };
+module.exports = { getById, getByStudent, getBySkill, getBySkillForUniversity, getByUniversity, getAll };

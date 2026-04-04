@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { RequestedSkillsForm } from '../components/requested-skills/RequestedSkillsForm';
 import { RequestedSkillsTable } from '../components/requested-skills/RequestedSkillsTable';
 import { useRequestedSkills } from '../hooks/useRequestedSkills';
+import { getUserFacingMessage } from '../lib/apiErrors';
 
 export function RequestedSkillsPage() {
   const { items, skills, loading, error, saving, createRequest, updateStatus, removeRequest } = useRequestedSkills();
@@ -55,7 +56,7 @@ export function RequestedSkillsPage() {
         await updateStatus(editingId, status);
         resetForm();
       } catch (err) {
-        setActionError(err.message || 'Could not update status');
+        setActionError(getUserFacingMessage(err, 'Could not update status'));
       }
       return;
     }
@@ -68,7 +69,7 @@ export function RequestedSkillsPage() {
       });
       resetForm();
     } catch (err) {
-      setActionError(err.message || 'Could not create request');
+      setActionError(getUserFacingMessage(err, 'Could not create request'));
     }
   }
 
@@ -79,7 +80,9 @@ export function RequestedSkillsPage() {
       await removeRequest(row.id);
       if (editingId === row.id) resetForm();
     } catch (err) {
-      setActionError(err.message || 'Delete failed (it may be linked to an exchange).');
+      setActionError(
+        getUserFacingMessage(err, 'Delete failed (it may be linked to an exchange).')
+      );
     }
   }
 
@@ -106,7 +109,7 @@ export function RequestedSkillsPage() {
   return (
     <div className="crud-page">
       <h1>Requested skills</h1>
-      <p className="muted">Skills you want to learn. Match profile (Form 1) uses the same ideas.</p>
+      <p className="muted">Skills you want to learn — free exchange or paid. Use <strong>Show matching students</strong> per row.</p>
 
       <RequestedSkillsForm
         editingId={editingId}

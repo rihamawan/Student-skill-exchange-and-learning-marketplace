@@ -1475,39 +1475,12 @@
     "/api/v1/skill-evaluations": {
       "get": {
         "summary": "List skill evaluations",
-        "description": "Admin: university-scoped; Superadmin: all.",
+        "description": "Admin: university-scoped; Superadmin: all; Student: query studentId (self or as allowed) or skillId (own attempts only). Evaluations are created by POST /skill-quiz/submit, not here.",
         "tags": ["Skill Evaluations"],
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "description": "List" },
           "401": { "description": "Unauthorized" }
-        }
-      },
-      "post": {
-        "summary": "Create skill evaluation",
-        "description": "Admin or Superadmin. Body: studentId, skillId.",
-        "tags": ["Skill Evaluations"],
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["studentId", "skillId"],
-                "properties": {
-                  "studentId": { "type": "integer" },
-                  "skillId": { "type": "integer" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Created" },
-          "400": { "description": "Validation error" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Admin/Superadmin required" }
         }
       }
     },
@@ -1522,36 +1495,6 @@
         "responses": {
           "200": { "description": "Found" },
           "401": { "description": "Unauthorized" },
-          "404": { "description": "Not found" }
-        }
-      },
-      "patch": {
-        "summary": "Update skill evaluation",
-        "description": "Admin or Superadmin. Body: status (pending, in-progress, submitted, graded), score, totalPossible.",
-        "tags": ["Skill Evaluations"],
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "status": { "type": "string", "enum": ["pending", "in-progress", "submitted", "graded"] },
-                  "score": { "type": "integer" },
-                  "totalPossible": { "type": "integer" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Updated" },
-          "400": { "description": "Validation error" },
-          "401": { "description": "Unauthorized" },
-          "403": { "description": "Admin/Superadmin required" },
           "404": { "description": "Not found" }
         }
       }
@@ -1708,13 +1651,77 @@
     "/api/v1/reports": {
       "get": {
         "summary": "Get reports",
-        "description": "Admin (university-scoped) or Superadmin (platform). Dashboard stats.",
+        "description": "Admin: university-scoped stats (totalStudents, totalExchanges, totalPayments, totalPaymentAmount). Superadmin: platform stats including totalUniversities, totalStudents, and universitiesStudentCounts (array of { universityId, universityName, studentCount } per university).",
         "tags": ["Reports"],
         "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": { "description": "Report data" },
+          "200": { "description": "Report data (shape depends on role; superadmin includes universitiesStudentCounts)" },
           "401": { "description": "Unauthorized" },
           "403": { "description": "Admin/Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/reports/payment-trend": {
+      "get": {
+        "summary": "Monthly payment trend for charts",
+        "description": "Returns per-month totalAmount (PKR) and paymentCount. Superadmin: all payments. Admin: payments where offerer is at admin university. Query: months (1–36, default 12).",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "months", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 36, "default": 12 } }
+        ],
+        "responses": {
+          "200": { "description": "{ success, data: { months, series: [{ period, totalAmount, paymentCount }] } }" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/reports/exchange-trend": {
+      "get": {
+        "summary": "Monthly exchange volume for charts",
+        "description": "Returns per-month exchangeCount by Exchange.CreatedAt. Superadmin: all exchanges. Admin: exchanges where offer or request student is at admin university.",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "months", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 36, "default": 12 } }
+        ],
+        "responses": {
+          "200": { "description": "{ success, data: { months, series: [{ period, exchangeCount }] } }" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/reports/top-skills": {
+      "get": {
+        "summary": "Top skills by offers, requests, and exchanges",
+        "description": "Superadmin: platform-wide. Admin: only students at your university. Query: limit (1–30, default 10).",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 30, "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "{ success, data: { limit, skills: [{ skillId, skillName, offerCount, requestCount, exchangeCount }] } }" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Admin/Superadmin required" }
+        }
+      }
+    },
+    "/api/v1/reports/university-leaderboard": {
+      "get": {
+        "summary": "Top universities by exchange involvement",
+        "description": "Superadmin only. Counts exchanges where an offer or request student belongs to each university. Query: limit (1–30, default 10).",
+        "tags": ["Reports"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 30, "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "{ success, data: { limit, universities: [{ universityId, universityName, exchangeCount }] } }" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Superadmin only" }
         }
       }
     }

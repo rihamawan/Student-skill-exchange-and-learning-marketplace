@@ -1,6 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { ErrorState } from '../components/feedback/ErrorState';
+import { LoadingState } from '../components/feedback/LoadingState';
 import { api } from '../lib/api';
-import { SimpleBarChart } from '../components/charts/SimpleBarChart';
+import { getUserFacingMessage } from '../lib/apiErrors';
+import { ExchangeTrendChart } from '../components/charts/ExchangeTrendChart';
+import { PaymentTrendChart } from '../components/charts/PaymentTrendChart';
+import { TopSkillsChart } from '../components/charts/TopSkillsChart';
+import { UniversityLeaderboardChart } from '../components/charts/UniversityLeaderboardChart';
+import { useReportExchangeTrend } from '../hooks/useReportExchangeTrend';
+import { useReportPaymentTrend } from '../hooks/useReportPaymentTrend';
+import { useReportTopSkills } from '../hooks/useReportTopSkills';
+import { useReportUniversityLeaderboard } from '../hooks/useReportUniversityLeaderboard';
 
 /**
  * @param {{ scope: 'admin' | 'superadmin' }} props
@@ -9,37 +19,37 @@ export function ReportsPage({ scope }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const isSuperScope = scope === 'superadmin';
+  const paymentTrend = useReportPaymentTrend(12);
+  const exchangeTrend = useReportExchangeTrend(12);
+  const topSkills = useReportTopSkills(10);
+  const uniLeaderboard = useReportUniversityLeaderboard(isSuperScope, 10);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await api('/api/v1/reports');
-        if (!cancelled) setData(res.data ?? null);
-      } catch (e) {
-        if (!cancelled) setError(e.message || 'Could not load reports');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const loadReports = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api('/api/v1/reports');
+      setData(res.data ?? null);
+    } catch (e) {
+      setError(getUserFacingMessage(e, 'Could not load reports'));
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
+
   const title = scope === 'superadmin' ? 'Platform reports' : 'University reports';
-  const subtitle =
-    scope === 'superadmin'
-      ? 'Platform-wide totals including payments.'
-      : 'Statistics for your university, including payment aggregates.';
 
   if (loading) {
     return (
       <div>
         <h1>{title}</h1>
-        <p className="muted">Loading report data…</p>
+        <LoadingState label="Loading report data…" />
       </div>
     );
   }
@@ -48,10 +58,7 @@ export function ReportsPage({ scope }) {
     return (
       <div>
         <h1>{title}</h1>
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-        <p className="muted">Ensure you are signed in as admin or superadmin and the API is running.</p>
+        <ErrorState message={error} onRetry={() => void loadReports()} />
       </div>
     );
   }
@@ -67,103 +74,81 @@ export function ReportsPage({ scope }) {
 
   const isSuper = scope === 'superadmin';
 
-  const superValues = [
-    data.totalUsers,
-    data.totalStudents,
-    data.totalExchanges,
-    data.totalPayments,
-    data.totalUniversities,
-    data.totalAdmins,
-  ];
-
-  const money = (n) =>
-    typeof n === 'number'
-      ? n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
-      : String(n);
-
   return (
     <div className="reports-page">
       <h1>{title}</h1>
-      <p className="muted">{subtitle}</p>
 
       <div className="report-cards">
         {isSuper ? (
           <>
             <div className="report-stat-card">
-              <span className="report-stat-label">Total users</span>
-              <span className="report-stat-num">{data.totalUsers ?? '—'}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Total students</span>
-              <span className="report-stat-num">{data.totalStudents ?? '—'}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Total exchanges</span>
-              <span className="report-stat-num">{data.totalExchanges ?? '—'}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Total payments</span>
-              <span className="report-stat-num">{data.totalPayments ?? '—'}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Payment volume</span>
-              <span className="report-stat-num">{money(data.totalPaymentAmount)}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Universities</span>
+              <span className="report-stat-label">Universities on platform</span>
               <span className="report-stat-num">{data.totalUniversities ?? '—'}</span>
             </div>
             <div className="report-stat-card">
-              <span className="report-stat-label">Admins</span>
-              <span className="report-stat-num">{data.totalAdmins ?? '—'}</span>
+              <span className="report-stat-label">Students (all universities)</span>
+              <span className="report-stat-num">{data.totalStudents ?? '—'}</span>
             </div>
           </>
         ) : (
-          <>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Students (your university)</span>
-              <span className="report-stat-num">{data.totalStudents ?? '—'}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Exchanges (your university)</span>
-              <span className="report-stat-num">{data.totalExchanges ?? '—'}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Payments (your university)</span>
-              <span className="report-stat-num">{data.totalPayments ?? '—'}</span>
-            </div>
-            <div className="report-stat-card">
-              <span className="report-stat-label">Payment total (your university)</span>
-              <span className="report-stat-num">{money(data.totalPaymentAmount)}</span>
-            </div>
-          </>
+          <div className="report-stat-card">
+            <span className="report-stat-label">Students at your university</span>
+            <span className="report-stat-num">{data.totalStudents ?? '—'}</span>
+          </div>
         )}
       </div>
 
+      {isSuper && Array.isArray(data.universitiesStudentCounts) ? (
+        <section className="report-uni-table-section" aria-labelledby="report-uni-students-heading">
+          <h2 id="report-uni-students-heading" className="report-section-title">
+            Students per university
+          </h2>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">University</th>
+                  <th scope="col">Students</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.universitiesStudentCounts.map((u) => (
+                  <tr key={u.universityId}>
+                    <td>{u.universityName}</td>
+                    <td>{u.studentCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
       <div className="report-charts">
+        <PaymentTrendChart
+          title="Payment volume by month (PKR)"
+          series={paymentTrend.series}
+          loading={paymentTrend.loading}
+          error={paymentTrend.error}
+        />
+        <ExchangeTrendChart
+          title="New exchanges by month"
+          series={exchangeTrend.series}
+          loading={exchangeTrend.loading}
+          error={exchangeTrend.error}
+        />
+        <TopSkillsChart
+          skills={topSkills.skills}
+          loading={topSkills.loading}
+          error={topSkills.error}
+        />
         {isSuper ? (
-          <SimpleBarChart
-            title="Platform overview (counts)"
-            labels={['Users', 'Students', 'Exchanges', 'Payments', 'Universities', 'Admins']}
-            values={superValues}
+          <UniversityLeaderboardChart
+            universities={uniLeaderboard.universities}
+            loading={uniLeaderboard.loading}
+            error={uniLeaderboard.error}
           />
-        ) : (
-          <SimpleBarChart
-            title="Your university (counts except payment total)"
-            labels={['Students', 'Exchanges', 'Payments']}
-            values={[data.totalStudents, data.totalExchanges, data.totalPayments]}
-          />
-        )}
-        {isSuper ? (
-          <SimpleBarChart title="Payment amount (platform)" labels={['Total paid']} values={[data.totalPaymentAmount]} formatValue={money} />
-        ) : (
-          <SimpleBarChart
-            title="Payment amount (your university)"
-            labels={['Total paid']}
-            values={[data.totalPaymentAmount]}
-            formatValue={money}
-          />
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
+import { BackendStatusBanner } from './components/feedback/BackendStatusBanner';
 import { AppLayout } from './components/layout/AppLayout';
 import { RequireAuth } from './components/layout/RequireAuth';
 import { RequireRole } from './components/layout/RequireRole';
@@ -27,7 +28,7 @@ import { RequireStudentVerified } from './components/layout/RequireStudentVerifi
 
 const STUDENT_NAV = [
   { to: '/student', label: 'Dashboard' },
-  { to: '/student/match-profile', label: 'Match profile' },
+  { to: '/student/match-profile', label: 'Profile & matching' },
   { to: '/student/offered-skills', label: 'Offered skills' },
   { to: '/student/requested-skills', label: 'Requested skills' },
   { to: '/student/conversations', label: 'Conversations' },
@@ -84,7 +85,9 @@ function SuperShell() {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <BackendStatusBanner />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />
@@ -119,5 +122,6 @@ export default function App() {
 
       <Route path="*" element={<ForbiddenPage />} />
     </Routes>
+    </>
   );
 }

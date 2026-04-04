@@ -10,6 +10,10 @@ const { requireRoles } = require('../../middleware/rbac.middleware');
 
 const router = express.Router();
 
+router.get('/payment-trend', requireAuth, requireRoles('admin', 'superadmin'), reportsController.getPaymentTrend);
+router.get('/exchange-trend', requireAuth, requireRoles('admin', 'superadmin'), reportsController.getExchangeTrend);
+router.get('/top-skills', requireAuth, requireRoles('admin', 'superadmin'), reportsController.getTopSkills);
+router.get('/university-leaderboard', requireAuth, requireRoles('superadmin'), reportsController.getUniversityLeaderboard);
 router.get('/', requireAuth, requireRoles('admin', 'superadmin'), reportsController.get);
 
 module.exports = router;

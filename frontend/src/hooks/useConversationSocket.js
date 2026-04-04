@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { baseUrl } from '../lib/api';
+import { getUserFacingMessage } from '../lib/apiErrors';
 import { getStoredToken } from '../lib/authStorage';
 
 /**
@@ -50,7 +51,7 @@ export function useConversationSocket(conversationId, onIncomingMessage, onExcha
     socket.on('connect_error', (err) => {
       if (cancelled) return;
       setSocketState('error');
-      setSocketError(err.message || 'Could not connect to chat server');
+      setSocketError(getUserFacingMessage(err, 'Could not connect to chat server'));
     });
 
     socket.on('message', (msg) => {
