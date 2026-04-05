@@ -38,7 +38,6 @@ export function MatchIntakePage() {
             <li key={m.studentId} className="match-suggestion card-like">
               <span>
                 <strong>{m.fullName}</strong>
-                <span className="muted"> — ID {m.studentId}</span>
               </span>
               <button
                 type="button"
@@ -53,16 +52,17 @@ export function MatchIntakePage() {
         </ul>
       ) : null}
 
-      <h2>Check by student ID</h2>
-      <p className="muted">Optional — if you already know their ID.</p>
+      <h2>Check by student name</h2>
+      <p className="muted">Same university only — we match their account name (full name from registration).</p>
       <div className="field">
-        <label htmlFor="mi-other">Other student ID</label>
+        <label htmlFor="mi-other">Other student&apos;s name</label>
         <input
           id="mi-other"
-          type="number"
-          min="1"
-          value={f.otherStudentId}
-          onChange={(e) => f.setOtherStudentId(e.target.value)}
+          type="text"
+          autoComplete="off"
+          placeholder="e.g. first and last name"
+          value={f.otherStudentName}
+          onChange={(e) => f.setOtherStudentName(e.target.value)}
         />
       </div>
       <p>
@@ -77,6 +77,12 @@ export function MatchIntakePage() {
       ) : null}
       {f.checkResult ? (
         <p className={f.checkResult.matched ? 'match-ok' : 'form-error'}>
+          {f.checkResult.resolvedPeerName ? (
+            <>
+              <strong>{String(f.checkResult.resolvedPeerName)}</strong>
+              {' — '}
+            </>
+          ) : null}
           {f.checkResult.matched
             ? 'Mutual match: you can open a conversation.'
             : 'No mutual match yet — adjust offers/requests or ask the other student to update theirs.'}

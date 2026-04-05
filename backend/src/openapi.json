@@ -375,16 +375,19 @@
     "/api/v1/matching/check": {
       "get": {
         "summary": "Check mutual match with another student",
-        "description": "Student only. Query: otherStudentId (integer). Returns matched and directional pair hints.",
+        "description": "Student only. Provide otherStudentName (at least 2 characters, same university) or otherStudentId. Name match tries exact full name first, then substring. Response data may include resolvedPeerName and otherStudentId.",
         "tags": ["Matching"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "name": "otherStudentId", "in": "query", "required": true, "schema": { "type": "integer", "minimum": 1 } }
+          { "name": "otherStudentName", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "otherStudentId", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1 } }
         ],
         "responses": {
           "200": { "description": "Match evaluation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MatchCheckResponse" } } } },
+          "400": { "description": "Validation or ambiguous name" },
           "401": { "description": "Unauthorized" },
-          "403": { "description": "Student required" }
+          "403": { "description": "Student required" },
+          "404": { "description": "No student matches that name at your university" }
         }
       }
     },
@@ -1738,12 +1741,16 @@
     "schemas": {
       "RegisterRequest": {
         "type": "object",
-        "required": ["email", "password", "fullName"],
+        "required": ["email", "password", "fullName", "phoneNumber"],
         "properties": {
           "email": { "type": "string", "format": "email" },
           "password": { "type": "string", "minLength": 6 },
           "fullName": { "type": "string" },
-          "phoneNumber": { "type": "string" },
+          "phoneNumber": {
+            "type": "string",
+            "pattern": "^03[0-9]{9}$",
+            "description": "Pakistan mobile: exactly 11 digits, prefix 03."
+          },
           "universityId": { "type": "integer", "minimum": 1, "description": "Optional. If provided, creates Student row so user gets role student." }
         }
       },

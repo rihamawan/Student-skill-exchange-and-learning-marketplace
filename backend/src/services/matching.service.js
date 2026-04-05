@@ -110,6 +110,66 @@ async function evaluateMutualMatch(studentIdA, studentIdB) {
 }
 
 /**
+ * Resolve another student at the same university by full name (exact match first, then substring).
+ * @param {number} myStudentId
+ * @param {string} rawName
+ * @returns {Promise<{ studentId: number, fullName: string }>}
+ */
+async function resolvePeerByName(myStudentId, rawName) {
+  const nameQuery = String(rawName ?? '').trim();
+  if (nameQuery.length < 2) {
+    const err = new Error('Enter at least 2 characters of their name.');
+    err.code = 'INVALID_INPUT';
+    throw err;
+  }
+  const pool = getPool();
+  const [meRows] = await pool.query('SELECT UniversityID FROM Student WHERE StudentID = ?', [myStudentId]);
+  if (!meRows.length) {
+    const err = new Error('Student profile not found.');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const uniId = meRows[0].UniversityID;
+
+  const [exact] = await pool.query(
+    `SELECT s.StudentID AS studentId, u.FullName AS fullName
+     FROM Student s
+     INNER JOIN User u ON u.UserID = s.StudentID
+     WHERE s.UniversityID = ? AND s.StudentID <> ?
+     AND LOWER(TRIM(u.FullName)) = LOWER(?)`,
+    [uniId, myStudentId, nameQuery]
+  );
+  if (exact.length === 1) {
+    return { studentId: Number(exact[0].studentId), fullName: String(exact[0].fullName) };
+  }
+  if (exact.length > 1) {
+    const err = new Error('Multiple students share that exact name. Add more of their name to narrow it down.');
+    err.code = 'AMBIGUOUS';
+    throw err;
+  }
+
+  const [partial] = await pool.query(
+    `SELECT s.StudentID AS studentId, u.FullName AS fullName
+     FROM Student s
+     INNER JOIN User u ON u.UserID = s.StudentID
+     WHERE s.UniversityID = ? AND s.StudentID <> ?
+     AND LOCATE(LOWER(?), LOWER(u.FullName)) > 0`,
+    [uniId, myStudentId, nameQuery]
+  );
+  if (partial.length === 1) {
+    return { studentId: Number(partial[0].studentId), fullName: String(partial[0].fullName) };
+  }
+  if (partial.length > 1) {
+    const err = new Error('Several students match that name. Type more of their full name.');
+    err.code = 'AMBIGUOUS';
+    throw err;
+  }
+  const err = new Error('No student at your university matches that name.');
+  err.code = 'NOT_FOUND';
+  throw err;
+}
+
+/**
  * Other students at the same university who mutually match this student (same rules as evaluateMutualMatch).
  * @returns {Promise<Array<{ studentId: number, fullName: string }>>}
  */
@@ -413,6 +473,7 @@ async function getForm2Eligibility(conversationId, studentId) {
 
 module.exports = {
   modeMatches,
+  resolvePeerByName,
   evaluateMutualMatch,
   evaluateMutualMatchForRequest,
   listMutualMatchesForStudent,

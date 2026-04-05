@@ -37,11 +37,22 @@ export function RegisterPage() {
     navigate(dashboardPathForRole(user.role), { replace: true });
   }, [ready, user, navigate, dashboardPathForRole]);
 
+  const PK_PHONE = /^03\d{9}$/;
+
+  function handlePhoneChange(e) {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+    setPhoneNumber(digits);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!universityId) {
       setError('Please select a university to register as a student.');
       setSubmitting(false);
+      return;
+    }
+    if (!PK_PHONE.test(phoneNumber.trim())) {
+      setError('Enter an 11-digit mobile number starting with 03 (e.g. 03001234567).');
       return;
     }
     setError('');
@@ -51,7 +62,7 @@ export function RegisterPage() {
         email,
         password,
         fullName,
-        phoneNumber: phoneNumber || undefined,
+        phoneNumber: phoneNumber.trim(),
         universityId: universityId || undefined,
       });
     } catch (err) {
@@ -95,8 +106,18 @@ export function RegisterPage() {
             />
           </label>
           <label className="field">
-            <span>Phone (optional)</span>
-            <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
+            <span>Phone Number(11 digits)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="tel"
+              placeholder="03001234567"
+              maxLength={11}
+              value={phoneNumber}
+              onChange={handlePhoneChange}
+              required
+              title="11 digits, starting with 03"
+            />
           </label>
           <label className="field">
             <span>University (optional — required for student role)</span>

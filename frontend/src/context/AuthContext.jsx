@@ -161,7 +161,9 @@ export function AuthProvider({ children }) {
   const register = useCallback(
     async ({ email, password, fullName, phoneNumber, universityId }, redirectTo) => {
       const body = { email, password, fullName };
-      if (phoneNumber) body.phoneNumber = phoneNumber;
+      if (phoneNumber != null && String(phoneNumber).trim() !== '') {
+        body.phoneNumber = String(phoneNumber).trim();
+      }
       if (universityId != null && universityId !== '') {
         body.universityId = Number(universityId);
       }
