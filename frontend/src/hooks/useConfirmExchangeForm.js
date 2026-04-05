@@ -44,7 +44,8 @@ export function useConfirmExchangeForm(conversationId) {
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [draftSaving, setDraftSaving] = useState(false);
-  const [draftMessage, setDraftMessage] = useState('');
+  /** @type {Record<number, string>} */
+  const [draftErrorsByRequestId, setDraftErrorsByRequestId] = useState({});
 
   const reload = useCallback(async () => {
     if (!Number.isFinite(cid) || cid < 1) {
@@ -162,7 +163,7 @@ export function useConfirmExchangeForm(conversationId) {
       const scheduledStart = combineDateTime(s.dateStr, s.startTime);
       const scheduledEnd = combineDateTime(s.dateStr, s.endTime);
       setDraftSaving(true);
-      setDraftMessage('');
+      setDraftErrorsByRequestId((prev) => ({ ...prev, [rid]: '' }));
       try {
         await api(`/api/v1/matching/conversations/${cid}/form2-draft`, {
           method: 'PUT',
@@ -179,10 +180,11 @@ export function useConfirmExchangeForm(conversationId) {
             agreedPrice: s.price !== '' ? Number(s.price) : undefined,
           },
         });
-        setDraftMessage('Draft saved.');
-        setTimeout(() => setDraftMessage(''), 2500);
       } catch (e) {
-        setDraftMessage(getUserFacingMessage(e, 'Could not save draft'));
+        setDraftErrorsByRequestId((prev) => ({
+          ...prev,
+          [rid]: getUserFacingMessage(e, 'Could not save draft'),
+        }));
       } finally {
         setDraftSaving(false);
       }
@@ -214,19 +216,19 @@ export function useConfirmExchangeForm(conversationId) {
       const venue = (s.venue ?? '').trim();
       if (!venue || !scheduledStart || !scheduledEnd) {
         setSubmitError(
-          `Each session needs venue, date, and times. Missing details for request #${rid} (${leg.skillName ?? 'skill'}). If this is your peer’s session, wait until they save a draft, then refresh.`
+          'Every session needs venue, date, and start/end times. Ask your peer to save their draft, then refresh.'
         );
         return;
       }
       const mt = s.meetingType === 'online' ? 'online' : 'physical';
       if (mt === 'online' && !String(s.platform ?? '').trim()) {
-        setSubmitError(`Platform is required for online session (request #${rid}).`);
+        setSubmitError('Choose a platform for each online session.');
         return;
       }
       if (leg.isPaid) {
         const pr = s.price !== '' ? Number(s.price) : NaN;
         if (!Number.isFinite(pr) || pr <= 0) {
-          setSubmitError(`Agreed price required for paid exchange (request #${rid}).`);
+          setSubmitError('Enter a valid agreed price (PKR) for paid sessions.');
           return;
         }
       }
@@ -290,7 +292,7 @@ export function useConfirmExchangeForm(conversationId) {
     updateLegSession,
     saveDraftForRequest,
     draftSaving,
-    draftMessage,
+    draftErrorsByRequestId,
     submitError,
     submitting,
     submit,

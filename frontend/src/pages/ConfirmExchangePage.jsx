@@ -21,7 +21,7 @@ export function ConfirmExchangePage() {
   if (f.loading) {
     return (
       <div>
-        <h1>Confirm exchange (Form 2)</h1>
+        <h1>Confirm exchange</h1>
         <p className="muted">Loading…</p>
       </div>
     );
@@ -30,7 +30,7 @@ export function ConfirmExchangePage() {
   if (f.loadError) {
     return (
       <div>
-        <h1>Confirm exchange (Form 2)</h1>
+        <h1>Confirm exchange</h1>
         <p className="form-error" role="alert">
           {f.loadError}
         </p>
@@ -46,12 +46,7 @@ export function ConfirmExchangePage() {
 
   return (
     <div className="confirm-exchange-page">
-      <h1>Confirm exchange (Form 2)</h1>
-      <p className="muted">
-        Choose which skill exchange this confirmation is for. Turn on readiness for <strong>this bundle</strong> when
-        you agree in chat. Each learner fills venue and time for <strong>their own</strong> request (two forms for a free
-        two-way swap; one form for a single paid or single-direction session).
-      </p>
+      <h1>Confirm exchange</h1>
 
       {bundles.length === 0 ? (
         <p className="form-error">No eligible exchange bundles for this conversation. Check open requests and offers.</p>
@@ -73,11 +68,12 @@ export function ConfirmExchangePage() {
           </div>
 
           <section className="exchange-readiness-panel card-like">
-            <h2 className="readiness-heading">Ready for this bundle (both required)</h2>
-            <p className="muted">
-              You: {er?.iAmReady ? 'On' : 'Off'} · Peer: {er?.peerReady ? 'On' : 'Off'}
-              {er?.bothReady ? ' — both ready.' : ''}
-            </p>
+            <h2 className="readiness-heading">Readiness</h2>
+            {!er?.bothReady ? (
+              <p className="muted">You and your peer must both turn readiness on before submitting.</p>
+            ) : (
+              <p className="form-success">Both ready.</p>
+            )}
             <button
               type="button"
               className="btn-secondary"
@@ -104,10 +100,7 @@ export function ConfirmExchangePage() {
                   {leg.isPaid ? ' (paid)' : ' (free exchange)'}
                 </h2>
                 {!mine ? (
-                  <p className="muted">
-                    The student who requested this skill enters venue and time. They can save a draft; refresh this page
-                    after they do so everyone can submit together.
-                  </p>
+                  <p className="muted">Your peer enters venue and time for this session.</p>
                 ) : (
                   <>
                     <div className="field">
@@ -215,9 +208,14 @@ export function ConfirmExchangePage() {
                     ) : null}
                     <p>
                       <button type="button" className="btn-secondary" disabled={f.draftSaving} onClick={() => f.saveDraftForRequest(rid)}>
-                        {f.draftSaving ? 'Saving…' : 'Save draft for this session'}
+                        {f.draftSaving ? 'Saving…' : 'Save draft'}
                       </button>
-                      {f.draftMessage ? <span className="muted small"> {f.draftMessage}</span> : null}
+                      {f.draftErrorsByRequestId?.[rid] ? (
+                        <span className="form-error small" role="alert">
+                          {' '}
+                          {f.draftErrorsByRequestId[rid]}
+                        </span>
+                      ) : null}
                     </p>
                   </>
                 )}
@@ -246,11 +244,7 @@ export function ConfirmExchangePage() {
           }
           onClick={f.submit}
         >
-          {f.submitting
-            ? 'Submitting…'
-            : f.selectedBundle?.kind === 'mutual_exchange'
-              ? 'Create two exchanges & sessions'
-              : 'Create exchange & session'}
+          {f.submitting ? 'Submitting…' : 'Confirm exchange'}
         </button>
       </p>
       <p className="muted">

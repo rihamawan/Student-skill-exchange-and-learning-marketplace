@@ -36,19 +36,21 @@ const paidExchangeValidators = [
   body('price').isFloat({ min: 0.01 }).withMessage('price must be a positive number'),
 ];
 
+/** Form 2 confirm: bundle + per-leg session fields inside each pair (no top-level meetingType/venue). */
 const confirmForm2Validators = [
   body('conversationId').isInt({ min: 1 }).withMessage('conversationId is required'),
-  body('meetingType').isIn(['physical', 'online']).withMessage('meetingType must be physical or online'),
-  body('venue').trim().notEmpty().withMessage('venue is required'),
-  body('scheduledStart').notEmpty().withMessage('scheduledStart is required'),
-  body('scheduledEnd').notEmpty().withMessage('scheduledEnd is required'),
+  body('bundleKey').trim().notEmpty().withMessage('bundleKey is required'),
   body('pairs').isArray({ min: 1 }).withMessage('pairs must be a non-empty array'),
   body('pairs.*.offerId').isInt({ min: 1 }).withMessage('Each pair needs offerId'),
   body('pairs.*.requestId').isInt({ min: 1 }).withMessage('Each pair needs requestId'),
+  body('pairs.*.venue').trim().notEmpty().withMessage('Each pair needs venue'),
+  body('pairs.*.scheduledStart').notEmpty().withMessage('Each pair needs scheduledStart'),
+  body('pairs.*.scheduledEnd').notEmpty().withMessage('Each pair needs scheduledEnd'),
+  body('pairs.*.meetingType')
+    .optional()
+    .isIn(['physical', 'online'])
+    .withMessage('meetingType must be physical or online'),
   body('pairs.*.agreedPrice').optional().isFloat({ min: 0.01 }),
-  body('videoSession.platform').optional().trim().notEmpty(),
-  body('videoSession.meetingLink').optional().trim(),
-  body('videoSession.meetingPassword').optional().trim(),
 ];
 
 // POST /api/v1/transactions/match-request (student only)

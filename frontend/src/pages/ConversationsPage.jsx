@@ -166,7 +166,7 @@ export function ConversationsPage() {
                   {socketError ? ` — ${socketError}` : ''}
                 </span>
                 <span className="chat-toolbar-actions">
-                  <Link to={`/student/confirm-exchange/${selectedId}`}>Confirm exchange (Form 2)</Link>
+                  <Link to={`/student/confirm-exchange/${selectedId}`}>Confirm exchange</Link>
                 </span>
               </div>
               {messagesLoading ? (
