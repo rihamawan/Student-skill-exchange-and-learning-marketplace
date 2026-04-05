@@ -418,3 +418,23 @@ WHERE Email = 'superadmin@skillexchange.edu.pk';
 UPDATE User
 SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW'
 WHERE Email = 'admin.itu@itu.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.itu@itu.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.lums@lums.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.fast@nu.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.uet@uet.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.pu@pu.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.nust@nust.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.comsats@comsats.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.bahria@bahria.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.uok@uok.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.ned@neduet.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.uop@uop.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.uaf@uaf.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.mul@mul.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.uos@uos.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.iub@iub.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.uog@uog.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.au@au.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.giki@giki.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.uol@uol.edu.pk';
+UPDATE User SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW' WHERE Email = 'admin.szabist@szabist.edu.pk';
