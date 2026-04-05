@@ -362,3 +362,17 @@ Base path: **`/api/v1`**. **Auth:** send `Authorization: Bearer <JWT>` unless no
 - **Student verification is manual.** `IsAdminVerified` gates full student features; unverified accounts may see a pending state until a university admin approves them in the admin UI or data is updated in the DB.
 
 - **Socket.io depends on the same API origin.** Chat assumes the client can reach the Socket.io server (same host/port as the API in typical setup). Misconfigured proxies or mixed HTTP/HTTPS can break the live connection.
+
+## Live Deployment
+
+-**Frontend:** https://student-skill-exchange-and-learning.vercel.app
+-**Backend API:** https://student-skill-exchange-and-learning-marketplace-production-4699.up.railway.app
+-**API Docs (Swagger):** https://student-skill-exchange-and-learning-marketplace-production-4699.up.railway.app/api-docs
+
+##Test Credentials
+
+| Role | Password |
+|------|----------|
+| All Admin accounts | `Admin123!` |
+| Super Admin | `superadmin123!` |
+| Students | `password123` |
