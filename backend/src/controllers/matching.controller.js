@@ -37,12 +37,44 @@ async function getCheck(req, res) {
     if (!studentId) {
       return res.status(403).json({ success: false, error: 'Only students can check matches' });
     }
-    const other = Number(req.query.otherStudentId);
-    if (!Number.isFinite(other) || other < 1) {
-      return res.status(400).json({ success: false, error: 'otherStudentId query is required' });
+    const name = String(req.query.otherStudentName ?? '').trim();
+    const idRaw = req.query.otherStudentId;
+    const fromId = idRaw != null && idRaw !== '' ? Number(idRaw) : NaN;
+
+    let other;
+    let resolvedPeerName;
+    if (name.length >= 2) {
+      try {
+        const resolved = await matchingService.resolvePeerByName(studentId, name);
+        other = resolved.studentId;
+        resolvedPeerName = resolved.fullName;
+      } catch (err) {
+        if (err.code === 'INVALID_INPUT') {
+          return res.status(400).json({ success: false, error: err.message });
+        }
+        if (err.code === 'NOT_FOUND') {
+          return res.status(404).json({ success: false, error: err.message });
+        }
+        if (err.code === 'AMBIGUOUS') {
+          return res.status(400).json({ success: false, error: err.message });
+        }
+        throw err;
+      }
+    } else if (Number.isFinite(fromId) && fromId >= 1) {
+      other = fromId;
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Provide otherStudentName (at least 2 characters) or otherStudentId',
+      });
     }
+
     const result = await matchingService.evaluateMutualMatch(studentId, other);
-    res.status(200).json({ success: true, data: result });
+    const data = { ...result, otherStudentId: other };
+    if (resolvedPeerName) {
+      data.resolvedPeerName = resolvedPeerName;
+    }
+    res.status(200).json({ success: true, data });
   } catch (err) {
     console.error('matching.getCheck', err);
     res.status(500).json({ success: false, error: 'Match check failed' });

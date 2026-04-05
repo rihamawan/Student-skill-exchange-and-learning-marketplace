@@ -3,7 +3,7 @@
  */
 
 const express = require('express');
-const { body, param, query, validationResult } = require('express-validator');
+const { body, param, validationResult } = require('express-validator');
 const matchingController = require('../../controllers/matching.controller');
 const { requireAuth } = require('../../middleware/auth.middleware');
 const { requireRoles } = require('../../middleware/rbac.middleware');
@@ -46,8 +46,17 @@ router.get(
   requireAuth,
   requireRoles('student'),
   requireStudentVerified,
-  query('otherStudentId').isInt({ min: 1 }).withMessage('otherStudentId is required'),
-  handleValidation,
+  (req, res, next) => {
+    const name = String(req.query.otherStudentName ?? '').trim();
+    const idRaw = req.query.otherStudentId;
+    const fromId = idRaw != null && idRaw !== '' ? Number(idRaw) : NaN;
+    if (name.length >= 2) return next();
+    if (Number.isFinite(fromId) && fromId >= 1) return next();
+    return res.status(400).json({
+      success: false,
+      error: 'Provide otherStudentName (at least 2 characters) or otherStudentId',
+    });
+  },
   matchingController.getCheck
 );
 

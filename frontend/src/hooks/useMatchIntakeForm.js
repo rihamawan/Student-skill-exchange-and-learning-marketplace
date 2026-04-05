@@ -4,12 +4,12 @@ import { api } from '../lib/api';
 import { getUserFacingMessage } from '../lib/apiErrors';
 
 /**
- * Profile & matching: mutual match list + optional check by student ID. Offers/requests: Offered / Requested skills tabs.
+ * Profile & matching: mutual match list + optional check by peer name (same university). Offers/requests: Offered / Requested skills tabs.
  */
 export function useMatchIntakeForm() {
   const navigate = useNavigate();
 
-  const [otherStudentId, setOtherStudentId] = useState('');
+  const [otherStudentName, setOtherStudentName] = useState('');
   const [checkResult, setCheckResult] = useState(null);
   const [checkError, setCheckError] = useState('');
   const [checking, setChecking] = useState(false);
@@ -42,21 +42,23 @@ export function useMatchIntakeForm() {
   const checkMatch = useCallback(async () => {
     setCheckError('');
     setCheckResult(null);
-    const other = Number(otherStudentId);
-    if (!Number.isFinite(other) || other < 1) {
-      setCheckError('Enter the other student’s numeric ID.');
+    const q = otherStudentName.trim();
+    if (q.length < 2) {
+      setCheckError('Enter at least 2 characters of the other student’s name.');
       return;
     }
     setChecking(true);
     try {
-      const res = await api(`/api/v1/matching/check?otherStudentId=${other}`);
+      const res = await api(
+        `/api/v1/matching/check?otherStudentName=${encodeURIComponent(q)}`
+      );
       setCheckResult(res.data ?? null);
     } catch (e) {
       setCheckError(getUserFacingMessage(e, 'Check failed'));
     } finally {
       setChecking(false);
     }
-  }, [otherStudentId]);
+  }, [otherStudentName]);
 
   const openConversationWithPeer = useCallback(
     async (peerStudentId) => {
@@ -83,12 +85,17 @@ export function useMatchIntakeForm() {
   );
 
   const openConversation = useCallback(async () => {
-    await openConversationWithPeer(Number(otherStudentId));
-  }, [otherStudentId, openConversationWithPeer]);
+    const peerId = checkResult?.otherStudentId;
+    if (peerId == null || !checkResult?.matched) {
+      setOpenError('Run a successful mutual match check first.');
+      return;
+    }
+    await openConversationWithPeer(Number(peerId));
+  }, [checkResult, openConversationWithPeer]);
 
   return {
-    otherStudentId,
-    setOtherStudentId,
+    otherStudentName,
+    setOtherStudentName,
     checkResult,
     checkError,
     checking,

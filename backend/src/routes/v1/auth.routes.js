@@ -18,11 +18,16 @@ function handleValidation(req, res, next) {
   next();
 }
 
+const PK_MOBILE = /^03\d{9}$/;
+
 const registerValidators = [
   body('email').trim().isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('fullName').trim().notEmpty().withMessage('Full name is required'),
-  body('phoneNumber').optional().trim(),
+  body('phoneNumber')
+    .trim()
+    .matches(PK_MOBILE)
+    .withMessage('Phone must be exactly 11 digits starting with 03 (e.g. 03001234567)'),
   body('universityId').optional().isInt({ min: 1 }).withMessage('universityId must be a positive integer'),
 ];
 
