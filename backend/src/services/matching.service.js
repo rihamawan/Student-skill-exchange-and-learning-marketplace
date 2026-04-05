@@ -64,6 +64,18 @@ function isPaidTutoringLink(learnerRequests, link) {
   return req != null && String(req.PreferredMode) === 'Paid';
 }
 
+/**
+ * For a reciprocal two-skill swap, both learners' request rows involved must use the same PreferredMode
+ * (both Exchange or both Paid). Otherwise we reject a "hybrid" where each leg mode-matches locally but the deal is inconsistent.
+ */
+function reciprocalRequestModesAlign(aReq, bReq, aLearnsFromB, bLearnsFromA) {
+  if (!aLearnsFromB || !bLearnsFromA) return true;
+  const reqRowA = aReq.find((r) => Number(r.RequestID) === Number(aLearnsFromB.requestId));
+  const reqRowB = bReq.find((r) => Number(r.RequestID) === Number(bLearnsFromA.requestId));
+  if (!reqRowA || !reqRowB) return false;
+  return String(reqRowA.PreferredMode) === String(reqRowB.PreferredMode);
+}
+
 async function loadOffers(studentId) {
   const [rows] = await getPool().query(
     'SELECT OfferID, StudentID, SkillID, IsPaid, PricePerHour FROM OfferedSkill WHERE StudentID = ?',
@@ -83,8 +95,10 @@ async function loadRequests(studentId) {
 
 /**
  * Match rules:
- * - **Exchange** requests: need both directions (I teach you / you teach me) with mode-aligned offer↔request pairs.
- * - **Paid** requests: paying to learn counts as a match with only that direction (no reciprocal skill required).
+ * - **Exchange** requests: need both directions (I teach you / you teach me) with mode-aligned offer↔request pairs,
+ *   and both learners' request rows must share the same PreferredMode (no Paid request vs Exchange request on the two legs).
+ * - **Paid** requests: paying to learn counts as a match with only that direction (no reciprocal skill required),
+ *   unless both skill directions pair — then reciprocal request modes must still agree (see evaluateMutualMatch body).
  */
 async function evaluateMutualMatch(studentIdA, studentIdB) {
   const [aOff, aReq, bOff, bReq] = await Promise.all([
@@ -97,10 +111,19 @@ async function evaluateMutualMatch(studentIdA, studentIdB) {
   const aLearnsFromB = findTeachingPair(aReq, bOff);
   const bLearnsFromA = findTeachingPair(bReq, aOff);
 
-  const twoWaySwap = Boolean(aLearnsFromB && bLearnsFromA);
+  const bothDirectionsPair = Boolean(aLearnsFromB && bLearnsFromA);
+  const reciprocalModesOk = reciprocalRequestModesAlign(aReq, bReq, aLearnsFromB, bLearnsFromA);
+  const twoWaySwap = bothDirectionsPair && reciprocalModesOk;
+
   const paidAFromB = Boolean(aLearnsFromB && isPaidTutoringLink(aReq, aLearnsFromB));
   const paidBFromA = Boolean(bLearnsFromA && isPaidTutoringLink(bReq, bLearnsFromA));
-  const matched = Boolean(twoWaySwap || paidAFromB || paidBFromA);
+
+  let matched;
+  if (bothDirectionsPair && !reciprocalModesOk) {
+    matched = false;
+  } else {
+    matched = Boolean(twoWaySwap || paidAFromB || paidBFromA);
+  }
 
   return {
     matched,
@@ -215,9 +238,16 @@ async function evaluateMutualMatchForRequest(studentIdA, studentIdB, requestId) 
   const reqRow = aReq.find((r) => Number(r.RequestID) === Number(requestId));
   const requestIsPaid = reqRow != null && String(reqRow.PreferredMode) === 'Paid';
 
-  const matched = requestIsPaid
-    ? Boolean(aLearnsFromB)
-    : Boolean(aLearnsFromB && bLearnsFromA);
+  let matched;
+  if (requestIsPaid) {
+    matched = Boolean(aLearnsFromB);
+  } else {
+    matched = Boolean(
+      aLearnsFromB &&
+        bLearnsFromA &&
+        reciprocalRequestModesAlign(aReq, bReq, aLearnsFromB, bLearnsFromA)
+    );
+  }
 
   return {
     matched,
@@ -456,13 +486,15 @@ async function getForm2Eligibility(conversationId, studentId) {
 
   const iTeachPeer = findTeachingPair(peerReq, myOff);
   const peerTeachesMe = findTeachingPair(myReq, peerOff);
+  const bothDirections = Boolean(iTeachPeer && peerTeachesMe);
+  const reciprocalOk = reciprocalRequestModesAlign(myReq, peerReq, peerTeachesMe, iTeachPeer);
 
   return {
     conversationId: Number(conversationId),
     peerStudentId: peerId,
     iTeachPeer,
     peerTeachesMe,
-    mutualSwapReady: Boolean(iTeachPeer && peerTeachesMe),
+    mutualSwapReady: bothDirections && reciprocalOk,
     exchangeReadiness: {
       iAmReady,
       peerReady,
