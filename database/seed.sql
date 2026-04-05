@@ -412,3 +412,9 @@ INSERT INTO Portfolio (StudentID, SkillID, Description) VALUES
 (97,16,'Resume templates and tips document for department.'),(98,17,'Moderated a panel discussion at a seminar.'),(99,18,'STAR-formatted answers document for interviews.'),(100,19,'Cleaned and visualized a public dataset in Python.'),(101,20,'Trained a simple recommendation model for a course.'),
 (102,21,'Grade calculator and GPA tracker spreadsheet.'),(103,22,'ODE solver and phase portrait plots.'),(104,23,'Bluetooth-controlled car with Arduino.'),(105,24,'Schematic review and DRC fixes for a group project.'),(106,25,'Newsletter content for a student club.'),
 (107,26,'README and setup guide for a GitHub project.'),(108,27,'Dialogue and scene writing for a short film script.'),(109,28,'Product and food photography for a friend startup.'),(110,29,'LinkedIn content and basic personal branding.'),(111,30,'Sprint plan and standup notes for a dev project.');
+UPDATE User
+SET PasswordHash = '$2b$10$rGiFR2CJC2w/FFX78IH0zupABY8zCVWfxATGUk2DeevwFGieUHrUK'
+WHERE Email = 'superadmin@skillexchange.edu.pk';
+UPDATE User
+SET PasswordHash = '$2b$10$im0vqeQuUuWZZ7DoD5ZHVe2lAxKAlAr.mO6zFCJaLQIWx/NxZc5qW'
+WHERE Email = 'admin.itu@itu.edu.pk';
