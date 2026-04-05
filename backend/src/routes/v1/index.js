@@ -47,7 +47,7 @@ router.use('/reports', reportsRoutes);
 // Users resource: /api/v1/users
 router.use('/users', usersRoutes);
 
-// Transaction scenarios (Phase 2): /api/v1/transactions
+// Transaction API: /api/v1/transactions
 router.use('/transactions', transactionsRoutes);
 
 // Universities: /api/v1/universities (superadmin CRUD; others read)

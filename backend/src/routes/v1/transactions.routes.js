@@ -1,6 +1,6 @@
 /**
  * src/routes/v1/transactions.routes.js
- * Two transaction scenario endpoints (Phase 2). Require auth + student role.
+ * Transaction scenario endpoints (match-request, paid-exchange). Require auth + student role.
  */
 
 const express = require('express');

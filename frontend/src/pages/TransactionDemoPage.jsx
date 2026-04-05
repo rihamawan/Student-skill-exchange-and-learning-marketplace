@@ -215,7 +215,7 @@ export function TransactionDemoPage() {
     <div className="crud-page transaction-demo-page">
       <h1>Transaction demo</h1>
       <p className="muted">
-        Phase 2 flows: <strong>match-request</strong> creates an exchange + session in one DB transaction;{' '}
+        <strong>match-request</strong> creates an exchange and session in one database transaction;{' '}
         <strong>paid-exchange</strong> records payment for an existing exchange.
       </p>
 

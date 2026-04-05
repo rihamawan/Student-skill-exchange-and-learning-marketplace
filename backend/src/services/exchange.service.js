@@ -1,6 +1,6 @@
 /**
  * src/services/exchange.service.js
- * Two transaction scenarios (Phase 2 requirement): raw SQL inside withTransaction.
+ * Transaction scenarios: raw SQL inside withTransaction.
  * Also: get by id, list by student, update status.
  */
 
