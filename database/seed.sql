@@ -1,6 +1,6 @@
 USE skill_exchange_db;
 
--- Dev login for all seeded users: password = Password123!
+-- Dev login for all seeded Students: password = Password123!
 -- (bcrypt hash below; re-hash if you change the password.)
 
 -- 1. University (20 Pakistani universities + 1 platform for superadmin)

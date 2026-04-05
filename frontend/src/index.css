@@ -709,7 +709,7 @@ label.inline {
   font-size: 0.9rem;
 }
 
-/* Member 2 — CRUD tables (offered/skills, etc.) */
+/* Admin / CRUD tables (offered & requested skills, etc.) */
 .crud-page {
   max-width: 960px;
 }
