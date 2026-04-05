@@ -67,7 +67,10 @@ async function confirmForm2(req, res) {
     if (!allowed) {
       return res.status(403).json({ success: false, error: 'Not a participant in this conversation' });
     }
-    const data = await exchangeService.confirmForm2ExchangeSessions(req.body);
+    const data = await exchangeService.confirmForm2ExchangeSessions({
+      ...req.body,
+      studentId,
+    });
     res.status(201).json({ success: true, data });
   } catch (err) {
     const clientCodes = new Set([
@@ -81,6 +84,9 @@ async function confirmForm2(req, res) {
       'REQUEST_NOT_OPEN',
       'MODE_MISMATCH',
       'PRICE_REQUIRED',
+      'BUNDLE_KEY_REQUIRED',
+      'INVALID_BUNDLE',
+      'SESSION_FIELDS_REQUIRED',
     ]);
     if (clientCodes.has(err.code)) {
       return res.status(400).json({ success: false, error: err.message, code: err.code });

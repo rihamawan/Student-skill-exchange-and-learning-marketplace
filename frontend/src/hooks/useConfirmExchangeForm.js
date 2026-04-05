@@ -1,39 +1,50 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getUserFacingMessage } from '../lib/apiErrors';
 import { useConversationSocket } from './useConversationSocket';
 
+function combineDateTime(date, time) {
+  if (!date || !time) return '';
+  return `${date} ${time}:00`;
+}
+
+function emptyLegSession() {
+  return {
+    venue: '',
+    dateStr: '',
+    startTime: '',
+    endTime: '',
+    meetingType: 'physical',
+    platform: 'Zoom',
+    meetingLink: '',
+    meetingPassword: '',
+    price: '',
+  };
+}
+
 /**
- * Form 2: confirm exchange + first session(s) for a conversation.
- * Exchange readiness is stored on the server; both students must PATCH ready before submit.
- * @param {string|number} conversationId
+ * Form 2: bundle picker, per-bundle readiness, per-request session fields (B1).
  */
 export function useConfirmExchangeForm(conversationId) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const myId = user?.id != null ? Number(user.id) : null;
   const cid = Number(conversationId);
 
   const [eligibility, setEligibility] = useState(null);
+  const [selectedBundleKey, setSelectedBundleKey] = useState('');
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [readinessSaving, setReadinessSaving] = useState(false);
   const [readinessError, setReadinessError] = useState('');
-
-  const [meetingType, setMeetingType] = useState('physical');
-  const [venue, setVenue] = useState('');
-  const [dateStr, setDateStr] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-
-  const [platform, setPlatform] = useState('Zoom');
-  const [meetingLink, setMeetingLink] = useState('');
-  const [meetingPassword, setMeetingPassword] = useState('');
-
-  const [priceTeach, setPriceTeach] = useState('');
-  const [priceLearn, setPriceLearn] = useState('');
-
+  /** @type {Record<number, ReturnType<typeof emptyLegSession>>} */
+  const [legSessions, setLegSessions] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [draftMessage, setDraftMessage] = useState('');
 
   const reload = useCallback(async () => {
     if (!Number.isFinite(cid) || cid < 1) {
@@ -44,15 +55,51 @@ export function useConfirmExchangeForm(conversationId) {
     setLoading(true);
     setLoadError('');
     try {
-      const res = await api(`/api/v1/matching/conversations/${cid}/form2-eligibility`);
-      setEligibility(res.data ?? null);
+      const q =
+        selectedBundleKey && selectedBundleKey.length > 0
+          ? `?bundleKey=${encodeURIComponent(selectedBundleKey)}`
+          : '';
+      const res = await api(`/api/v1/matching/conversations/${cid}/form2-eligibility${q}`);
+      const data = res.data ?? null;
+      setEligibility(data);
+      if (data?.bundles?.length) {
+        const keys = data.bundles.map((b) => b.bundleKey);
+        if (!selectedBundleKey || !keys.includes(selectedBundleKey)) {
+          setSelectedBundleKey(data.bundles[0].bundleKey);
+        }
+      }
+      if (data?.draftsByRequestId) {
+        setLegSessions((prev) => {
+          const next = { ...prev };
+          for (const [ridStr, d] of Object.entries(data.draftsByRequestId)) {
+            const rid = Number(ridStr);
+            if (!Number.isFinite(rid)) continue;
+            const start = d.scheduledStart ? String(d.scheduledStart).slice(0, 19) : '';
+            const datePart = start ? start.slice(0, 10) : '';
+            const timePart = start.length >= 16 ? start.slice(11, 16) : '';
+            const end = d.scheduledEnd ? String(d.scheduledEnd).slice(11, 16) : '';
+            next[rid] = {
+              venue: d.venue ?? '',
+              dateStr: datePart,
+              startTime: timePart,
+              endTime: end,
+              meetingType: d.meetingType === 'online' ? 'online' : 'physical',
+              platform: d.platform ?? 'Zoom',
+              meetingLink: d.meetingLink ?? '',
+              meetingPassword: d.meetingPassword ?? '',
+              price: d.agreedPrice != null ? String(d.agreedPrice) : '',
+            };
+          }
+          return next;
+        });
+      }
     } catch (e) {
       setLoadError(getUserFacingMessage(e, 'Could not load options'));
       setEligibility(null);
     } finally {
       setLoading(false);
     }
-  }, [cid]);
+  }, [cid, selectedBundleKey]);
 
   useEffect(() => {
     reload();
@@ -64,20 +111,30 @@ export function useConfirmExchangeForm(conversationId) {
 
   useConversationSocket(Number.isFinite(cid) && cid > 0 ? cid : null, null, onSocketReadiness);
 
-  function combineDateTime(date, time) {
-    if (!date || !time) return '';
-    return `${date} ${time}:00`;
-  }
+  const selectedBundle = eligibility?.bundles?.find((b) => b.bundleKey === selectedBundleKey) ?? null;
+
+  useEffect(() => {
+    if (!selectedBundle?.legs) return;
+    setLegSessions((prev) => {
+      const next = { ...prev };
+      for (const leg of selectedBundle.legs) {
+        if (next[leg.requestId] == null) {
+          next[leg.requestId] = emptyLegSession();
+        }
+      }
+      return next;
+    });
+  }, [selectedBundleKey, selectedBundle]);
 
   const patchMyReadiness = useCallback(
     async (ready) => {
-      if (!Number.isFinite(cid) || cid < 1) return;
+      if (!Number.isFinite(cid) || cid < 1 || !selectedBundleKey) return;
       setReadinessError('');
       setReadinessSaving(true);
       try {
         await api(`/api/v1/conversations/${cid}/exchange-readiness`, {
           method: 'PATCH',
-          body: { ready },
+          body: { ready, bundleKey: selectedBundleKey },
         });
         await reload();
       } catch (e) {
@@ -86,95 +143,118 @@ export function useConfirmExchangeForm(conversationId) {
         setReadinessSaving(false);
       }
     },
-    [cid, reload]
+    [cid, selectedBundleKey, reload]
+  );
+
+  const updateLegSession = useCallback((requestId, patch) => {
+    const rid = Number(requestId);
+    setLegSessions((prev) => ({
+      ...prev,
+      [rid]: { ...(prev[rid] ?? emptyLegSession()), ...patch },
+    }));
+  }, []);
+
+  const saveDraftForRequest = useCallback(
+    async (requestId) => {
+      if (!selectedBundleKey || !Number.isFinite(cid)) return;
+      const rid = Number(requestId);
+      const s = legSessions[rid] ?? emptyLegSession();
+      const scheduledStart = combineDateTime(s.dateStr, s.startTime);
+      const scheduledEnd = combineDateTime(s.dateStr, s.endTime);
+      setDraftSaving(true);
+      setDraftMessage('');
+      try {
+        await api(`/api/v1/matching/conversations/${cid}/form2-draft`, {
+          method: 'PUT',
+          body: {
+            bundleKey: selectedBundleKey,
+            requestId: rid,
+            venue: s.venue,
+            scheduledStart: scheduledStart || undefined,
+            scheduledEnd: scheduledEnd || undefined,
+            meetingType: s.meetingType,
+            platform: s.meetingType === 'online' ? s.platform : undefined,
+            meetingLink: s.meetingLink || undefined,
+            meetingPassword: s.meetingPassword || undefined,
+            agreedPrice: s.price !== '' ? Number(s.price) : undefined,
+          },
+        });
+        setDraftMessage('Draft saved.');
+        setTimeout(() => setDraftMessage(''), 2500);
+      } catch (e) {
+        setDraftMessage(getUserFacingMessage(e, 'Could not save draft'));
+      } finally {
+        setDraftSaving(false);
+      }
+    },
+    [cid, selectedBundleKey, legSessions]
   );
 
   const submit = useCallback(async () => {
     setSubmitError('');
     if (!eligibility?.exchangeReadiness?.bothReady) {
-      setSubmitError('Both students must turn on “Ready to confirm exchange” in this chat (or on this page).');
+      setSubmitError('Both students must turn on readiness for this exchange bundle.');
       return;
     }
-    const scheduledStart = combineDateTime(dateStr, startTime);
-    const scheduledEnd = combineDateTime(dateStr, endTime);
-    if (!scheduledStart || !scheduledEnd) {
-      setSubmitError('Date, start time, and end time are required.');
+    if (!selectedBundle || !selectedBundleKey) {
+      setSubmitError('Select an exchange bundle.');
       return;
     }
-    if (!venue.trim()) {
-      setSubmitError('Venue is required (use “Online” if needed).');
+    if (myId == null || !Number.isFinite(myId)) {
+      setSubmitError('Not signed in.');
       return;
     }
 
-    const teach = eligibility?.iTeachPeer;
-    const learn = eligibility?.peerTeachesMe;
-
-    /** @type {{ offerId: number, requestId: number, agreedPrice?: number }[]} */
     const pairs = [];
-    /** @type {{ isPaid: boolean }[]} */
-    const pairMeta = [];
-
-    if (eligibility?.mutualSwapReady && teach && learn) {
-      pairs.push({
-        offerId: teach.offerId,
-        requestId: teach.requestId,
-        agreedPrice: teach.isPaid ? Number(priceTeach) || undefined : undefined,
-      });
-      pairMeta.push(teach);
-      pairs.push({
-        offerId: learn.offerId,
-        requestId: learn.requestId,
-        agreedPrice: learn.isPaid ? Number(priceLearn) || undefined : undefined,
-      });
-      pairMeta.push(learn);
-    } else if (teach) {
-      pairs.push({
-        offerId: teach.offerId,
-        requestId: teach.requestId,
-        agreedPrice: teach.isPaid && priceTeach !== '' ? Number(priceTeach) : undefined,
-      });
-      pairMeta.push(teach);
-    } else if (learn) {
-      pairs.push({
-        offerId: learn.offerId,
-        requestId: learn.requestId,
-        agreedPrice: learn.isPaid && priceLearn !== '' ? Number(priceLearn) : undefined,
-      });
-      pairMeta.push(learn);
-    } else {
-      setSubmitError('No eligible teach/learn pair found. Ensure requests are still open and skills still match.');
-      return;
-    }
-
-    for (let i = 0; i < pairs.length; i++) {
-      const p = pairs[i];
-      const meta = pairMeta[i];
-      if (!p.offerId || !p.requestId) {
-        setSubmitError('Missing offer or request IDs.');
+    for (const leg of selectedBundle.legs) {
+      const rid = leg.requestId;
+      const s = legSessions[rid] ?? emptyLegSession();
+      const scheduledStart = combineDateTime(s.dateStr, s.startTime);
+      const scheduledEnd = combineDateTime(s.dateStr, s.endTime);
+      const venue = (s.venue ?? '').trim();
+      if (!venue || !scheduledStart || !scheduledEnd) {
+        setSubmitError(
+          `Each session needs venue, date, and times. Missing details for request #${rid} (${leg.skillName ?? 'skill'}). If this is your peer’s session, wait until they save a draft, then refresh.`
+        );
         return;
       }
-      if (meta.isPaid && (p.agreedPrice == null || Number(p.agreedPrice) <= 0)) {
-        setSubmitError('Agreed price (PKR) is required for each paid exchange.');
+      const mt = s.meetingType === 'online' ? 'online' : 'physical';
+      if (mt === 'online' && !String(s.platform ?? '').trim()) {
+        setSubmitError(`Platform is required for online session (request #${rid}).`);
         return;
       }
+      if (leg.isPaid) {
+        const pr = s.price !== '' ? Number(s.price) : NaN;
+        if (!Number.isFinite(pr) || pr <= 0) {
+          setSubmitError(`Agreed price required for paid exchange (request #${rid}).`);
+          return;
+        }
+      }
+
+      pairs.push({
+        offerId: leg.offerId,
+        requestId: leg.requestId,
+        agreedPrice: leg.isPaid ? Number(s.price) : undefined,
+        scheduledStart,
+        scheduledEnd,
+        venue,
+        meetingType: mt,
+        videoSession:
+          mt === 'online'
+            ? {
+                platform: s.platform.trim(),
+                meetingLink: s.meetingLink?.trim() || undefined,
+                meetingPassword: s.meetingPassword?.trim() || undefined,
+              }
+            : undefined,
+      });
     }
 
     const body = {
       conversationId: cid,
-      meetingType,
-      venue: venue.trim(),
-      scheduledStart,
-      scheduledEnd,
+      bundleKey: selectedBundleKey,
       pairs,
     };
-
-    if (meetingType === 'online') {
-      body.videoSession = {
-        platform,
-        meetingLink: meetingLink.trim() || undefined,
-        meetingPassword: meetingPassword.trim() || undefined,
-      };
-    }
 
     setSubmitting(true);
     try {
@@ -187,50 +267,33 @@ export function useConfirmExchangeForm(conversationId) {
     }
   }, [
     eligibility,
-    dateStr,
-    startTime,
-    endTime,
-    venue,
-    meetingType,
-    platform,
-    meetingLink,
-    meetingPassword,
-    priceTeach,
-    priceLearn,
+    selectedBundle,
+    selectedBundleKey,
+    legSessions,
+    myId,
     cid,
     navigate,
   ]);
 
   return {
     eligibility,
+    selectedBundleKey,
+    setSelectedBundleKey,
+    selectedBundle,
     loadError,
     loading,
     reload,
     readinessSaving,
     readinessError,
     patchMyReadiness,
-    meetingType,
-    setMeetingType,
-    venue,
-    setVenue,
-    dateStr,
-    setDateStr,
-    startTime,
-    setStartTime,
-    endTime,
-    setEndTime,
-    platform,
-    setPlatform,
-    meetingLink,
-    setMeetingLink,
-    meetingPassword,
-    setMeetingPassword,
-    priceTeach,
-    setPriceTeach,
-    priceLearn,
-    setPriceLearn,
+    legSessions,
+    updateLegSession,
+    saveDraftForRequest,
+    draftSaving,
+    draftMessage,
     submitError,
     submitting,
     submit,
+    myStudentId: myId,
   };
 }

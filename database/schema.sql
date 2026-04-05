@@ -14,6 +14,8 @@ DROP TABLE IF EXISTS Payment;
 DROP TABLE IF EXISTS Session;
 DROP TABLE IF EXISTS PaidExchange;
 DROP TABLE IF EXISTS Exchange;
+DROP TABLE IF EXISTS Form2SessionDraft;
+DROP TABLE IF EXISTS ConversationBundleReadiness;
 DROP TABLE IF EXISTS Conversation;
 DROP TABLE IF EXISTS OfferTimeSlot;
 DROP TABLE IF EXISTS RequestedSkill;
@@ -158,6 +160,37 @@ CREATE TABLE Conversation (
     CONSTRAINT fk_conv_s2 FOREIGN KEY (Student2ID)
         REFERENCES Student(StudentID),
     CONSTRAINT chk_diff_students CHECK (Student1ID <> Student2ID)
+);
+
+-- Form 2: readiness and session drafts scoped per mutual/single bundle (not only whole conversation)
+CREATE TABLE ConversationBundleReadiness (
+    ConversationID INT         NOT NULL,
+    BundleKey      VARCHAR(255) NOT NULL,
+    Student1Ready  TINYINT      NOT NULL DEFAULT 0,
+    Student2Ready  TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (ConversationID, BundleKey),
+    CONSTRAINT fk_cbr_conv FOREIGN KEY (ConversationID)
+        REFERENCES Conversation(ConversationID) ON DELETE CASCADE
+);
+
+CREATE TABLE Form2SessionDraft (
+    ConversationID INT         NOT NULL,
+    BundleKey      VARCHAR(255) NOT NULL,
+    RequestID      INT         NOT NULL,
+    Venue          VARCHAR(512) NOT NULL DEFAULT '',
+    ScheduledStart DATETIME    NULL,
+    ScheduledEnd   DATETIME    NULL,
+    MeetingType    VARCHAR(20)  NOT NULL DEFAULT 'physical',
+    Platform       VARCHAR(64)  NULL,
+    MeetingLink    VARCHAR(1024) NULL,
+    MeetingPassword VARCHAR(256) NULL,
+    AgreedPrice    DECIMAL(12, 2) NULL,
+    UpdatedAt      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (ConversationID, BundleKey, RequestID),
+    CONSTRAINT fk_f2d_conv FOREIGN KEY (ConversationID)
+        REFERENCES Conversation(ConversationID) ON DELETE CASCADE,
+    CONSTRAINT fk_f2d_req FOREIGN KEY (RequestID)
+        REFERENCES RequestedSkill(RequestID) ON DELETE CASCADE
 );
 
 CREATE TABLE Exchange (

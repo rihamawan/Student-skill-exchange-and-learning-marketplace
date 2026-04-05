@@ -128,7 +128,8 @@ async function getForm2Eligibility(req, res) {
       return res.status(403).json({ success: false, error: 'Only students can view eligibility' });
     }
     const conversationId = Number(req.params.conversationId);
-    const data = await matchingService.getForm2Eligibility(conversationId, studentId);
+    const bundleKey = req.query.bundleKey != null ? String(req.query.bundleKey) : undefined;
+    const data = await matchingService.getForm2Eligibility(conversationId, studentId, { bundleKey });
     res.status(200).json({ success: true, data });
   } catch (err) {
     if (err.code === 'CONVERSATION_NOT_FOUND') {
@@ -142,4 +143,41 @@ async function getForm2Eligibility(req, res) {
   }
 }
 
-module.exports = { postForm1, getCheck, getMatches, getMatchesForRequest, getForm2Eligibility };
+async function putForm2Draft(req, res) {
+  try {
+    const studentId = getStudentId(req);
+    if (!studentId) {
+      return res.status(403).json({ success: false, error: 'Only students can save drafts' });
+    }
+    const conversationId = Number(req.params.conversationId);
+    const conversationService = require('../services/conversation.service');
+    const allowed = await conversationService.isParticipant(conversationId, studentId);
+    if (!allowed) {
+      return res.status(403).json({ success: false, error: 'Not a participant' });
+    }
+    const bundleKey = req.body.bundleKey != null ? String(req.body.bundleKey) : '';
+    const requestId = Number(req.body.requestId);
+    if (!bundleKey || !Number.isFinite(requestId) || requestId < 1) {
+      return res.status(400).json({ success: false, error: 'bundleKey and requestId are required' });
+    }
+    await conversationService.upsertForm2SessionDraft(conversationId, bundleKey, requestId, studentId, {
+      venue: req.body.venue,
+      scheduledStart: req.body.scheduledStart,
+      scheduledEnd: req.body.scheduledEnd,
+      meetingType: req.body.meetingType,
+      platform: req.body.platform,
+      meetingLink: req.body.meetingLink,
+      meetingPassword: req.body.meetingPassword,
+      agreedPrice: req.body.agreedPrice,
+    });
+    res.status(200).json({ success: true, data: { message: 'Draft saved.' } });
+  } catch (err) {
+    if (err.code === 'FORBIDDEN_DRAFT') {
+      return res.status(403).json({ success: false, error: err.message });
+    }
+    console.error('matching.putForm2Draft', err);
+    res.status(500).json({ success: false, error: 'Failed to save draft' });
+  }
+}
+
+module.exports = { postForm1, getCheck, getMatches, getMatchesForRequest, getForm2Eligibility, putForm2Draft };

@@ -39,6 +39,7 @@ router.patch(
   requireStudentVerified,
   idParam,
   body('ready').isBoolean().withMessage('ready must be a boolean'),
+  body('bundleKey').optional().isString(),
   handleValidation,
   conversationsController.patchExchangeReadiness
 );

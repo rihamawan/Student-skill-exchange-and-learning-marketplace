@@ -38,6 +38,145 @@ function findTeachingPair(learnerRequests, teacherOffers) {
 }
 
 /**
+ * All valid offer↔request pairs (same skill, mode aligned) for Form 2 bundle enumeration.
+ * @returns {Array<{ offerId: number, requestId: number, skillId: number, isPaid: boolean }>}
+ */
+function findAllTeachingPairs(learnerRequests, teacherOffers) {
+  const out = [];
+  for (const req of learnerRequests) {
+    if (String(req.Status) !== 'open') continue;
+    for (const off of teacherOffers) {
+      if (Number(req.SkillID) === Number(off.SkillID) && modeMatches(off.IsPaid, req.PreferredMode)) {
+        out.push({
+          offerId: Number(off.OfferID),
+          requestId: Number(req.RequestID),
+          skillId: Number(req.SkillID),
+          isPaid: Boolean(Number(off.IsPaid)),
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function makeBundleKeyMutual(t, l) {
+  const a = `t${t.offerId}-${t.requestId}`;
+  const b = `l${l.offerId}-${l.requestId}`;
+  return a < b ? `mutual:${a}:${b}` : `mutual:${b}:${a}`;
+}
+
+function makeBundleKeySingle(link) {
+  return `single:${link.offerId}-${link.requestId}`;
+}
+
+/**
+ * Enumerate Form 2 bundles: mutual Exchange swaps first; otherwise one bundle per directed leg.
+ */
+function buildForm2Bundles(myStudentId, peerStudentId, myReq, peerReq, myOff, peerOff) {
+  const allTeach = findAllTeachingPairs(peerReq, myOff);
+  const allLearn = findAllTeachingPairs(myReq, peerOff);
+  const mutual = [];
+
+  for (const t of allTeach) {
+    for (const l of allLearn) {
+      if (!reciprocalRequestModesAlign(myReq, peerReq, l, t)) continue;
+      const reqRowL = myReq.find((r) => Number(r.RequestID) === Number(l.requestId));
+      const reqRowT = peerReq.find((r) => Number(r.RequestID) === Number(t.requestId));
+      if (!reqRowL || !reqRowT) continue;
+      if (String(reqRowL.PreferredMode) !== 'Exchange' || String(reqRowT.PreferredMode) !== 'Exchange') continue;
+
+      mutual.push({
+        bundleKey: makeBundleKeyMutual(t, l),
+        kind: 'mutual_exchange',
+        legs: [
+          {
+            offerId: l.offerId,
+            requestId: l.requestId,
+            skillId: l.skillId,
+            isPaid: l.isPaid,
+            learnerStudentId: myStudentId,
+            teacherStudentId: peerStudentId,
+            roleLabel: 'You learn (your request)',
+          },
+          {
+            offerId: t.offerId,
+            requestId: t.requestId,
+            skillId: t.skillId,
+            isPaid: t.isPaid,
+            learnerStudentId: peerStudentId,
+            teacherStudentId: myStudentId,
+            roleLabel: 'Peer learns (their request)',
+          },
+        ],
+      });
+    }
+  }
+
+  if (mutual.length > 0) {
+    return mutual;
+  }
+
+  const singles = [];
+  const seen = new Set();
+  for (const t of allTeach) {
+    const k = makeBundleKeySingle(t);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    singles.push({
+      bundleKey: k,
+      kind: 'single',
+      legs: [
+        {
+          offerId: t.offerId,
+          requestId: t.requestId,
+          skillId: t.skillId,
+          isPaid: t.isPaid,
+          learnerStudentId: peerStudentId,
+          teacherStudentId: myStudentId,
+          roleLabel: 'Peer learns from you (your offer)',
+        },
+      ],
+    });
+  }
+  for (const l of allLearn) {
+    const k = makeBundleKeySingle(l);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    singles.push({
+      bundleKey: k,
+      kind: 'single',
+      legs: [
+        {
+          offerId: l.offerId,
+          requestId: l.requestId,
+          skillId: l.skillId,
+          isPaid: l.isPaid,
+          learnerStudentId: myStudentId,
+          teacherStudentId: peerStudentId,
+          roleLabel: 'You learn from peer (your request)',
+        },
+      ],
+    });
+  }
+  return singles;
+}
+
+/**
+ * @param {object} bundle from buildForm2Bundles
+ * @param {Array<{ offerId: number, requestId: number }>} pairs
+ */
+function pairsMatchBundleLegs(bundle, pairs) {
+  if (!bundle || !Array.isArray(pairs) || bundle.legs.length !== pairs.length) return false;
+  const want = new Set(bundle.legs.map((x) => `${Number(x.offerId)}:${Number(x.requestId)}`));
+  const got = new Set(pairs.map((p) => `${Number(p.offerId)}:${Number(p.requestId)}`));
+  if (want.size !== got.size) return false;
+  for (const w of want) {
+    if (!got.has(w)) return false;
+  }
+  return true;
+}
+
+/**
  * Same as findTeachingPair but only for a specific learner request row (RequestID).
  */
 function findTeachingPairForRequest(learnerRequests, teacherOffers, requestId) {
@@ -450,10 +589,32 @@ async function saveMatchForm1(userId, payload) {
   });
 }
 
+async function attachSkillNamesToBundles(bundles) {
+  const ids = new Set();
+  for (const b of bundles) {
+    for (const leg of b.legs) ids.add(leg.skillId);
+  }
+  const arr = [...ids];
+  if (arr.length === 0) return bundles;
+  const [rows] = await getPool().query(
+    `SELECT SkillID, SkillName FROM Skill WHERE SkillID IN (${arr.map(() => '?').join(',')})`,
+    arr
+  );
+  const map = Object.fromEntries(rows.map((r) => [Number(r.SkillID), String(r.SkillName)]));
+  return bundles.map((b) => ({
+    ...b,
+    legs: b.legs.map((leg) => ({ ...leg, skillName: map[leg.skillId] ?? 'Skill' })),
+  }));
+}
+
 /**
- * Suggested exchange rows for Form 2 (IDs for POST confirm-form2).
+ * Suggested exchange rows for Form 2 (bundles, drafts, per-bundle readiness).
+ * @param {{ bundleKey?: string }} [options]
  */
-async function getForm2Eligibility(conversationId, studentId) {
+async function getForm2Eligibility(conversationId, studentId, options = {}) {
+  const conversationService = require('./conversation.service');
+  const bundleKeyParam = options.bundleKey != null ? String(options.bundleKey) : null;
+
   const [convRows] = await getPool().query(
     `SELECT ConversationID, Student1ID, Student2ID,
             Student1ExchangeReady, Student2ExchangeReady
@@ -474,8 +635,6 @@ async function getForm2Eligibility(conversationId, studentId) {
     throw err;
   }
   const peerId = studentId === s1 ? s2 : s1;
-  const iAmReady = studentId === s1 ? Boolean(Number(conv.Student1ExchangeReady)) : Boolean(Number(conv.Student2ExchangeReady));
-  const peerReady = studentId === s1 ? Boolean(Number(conv.Student2ExchangeReady)) : Boolean(Number(conv.Student1ExchangeReady));
 
   const [myOff, myReq, peerOff, peerReq] = await Promise.all([
     loadOffers(studentId),
@@ -483,6 +642,56 @@ async function getForm2Eligibility(conversationId, studentId) {
     loadOffers(peerId),
     loadRequests(peerId),
   ]);
+
+  let bundles = buildForm2Bundles(studentId, peerId, myReq, peerReq, myOff, peerOff);
+  bundles = await attachSkillNamesToBundles(bundles);
+
+  const effectiveKey =
+    bundleKeyParam && bundles.some((b) => b.bundleKey === bundleKeyParam)
+      ? bundleKeyParam
+      : bundles[0]?.bundleKey ?? null;
+
+  let iAmReady = false;
+  let peerReady = false;
+  if (effectiveKey) {
+    try {
+      const br = await conversationService.getBundleReadinessRow(conversationId, effectiveKey);
+      if (br) {
+        iAmReady = studentId === s1 ? Boolean(Number(br.Student1Ready)) : Boolean(Number(br.Student2Ready));
+        peerReady = studentId === s1 ? Boolean(Number(br.Student2Ready)) : Boolean(Number(br.Student1Ready));
+      } else {
+        iAmReady = studentId === s1 ? Boolean(Number(conv.Student1ExchangeReady)) : Boolean(Number(conv.Student2ExchangeReady));
+        peerReady = studentId === s1 ? Boolean(Number(conv.Student2ExchangeReady)) : Boolean(Number(conv.Student1ExchangeReady));
+      }
+    } catch {
+      iAmReady = studentId === s1 ? Boolean(Number(conv.Student1ExchangeReady)) : Boolean(Number(conv.Student2ExchangeReady));
+      peerReady = studentId === s1 ? Boolean(Number(conv.Student2ExchangeReady)) : Boolean(Number(conv.Student1ExchangeReady));
+    }
+  }
+
+  let draftsByRequestId = {};
+  if (effectiveKey) {
+    try {
+      const drafts = await conversationService.getForm2DraftsForBundle(conversationId, effectiveKey);
+      draftsByRequestId = Object.fromEntries(
+        drafts.map((d) => [
+          Number(d.RequestID),
+          {
+            venue: d.Venue ?? '',
+            scheduledStart: d.ScheduledStart,
+            scheduledEnd: d.ScheduledEnd,
+            meetingType: d.MeetingType === 'online' ? 'online' : 'physical',
+            platform: d.Platform,
+            meetingLink: d.MeetingLink,
+            meetingPassword: d.MeetingPassword,
+            agreedPrice: d.AgreedPrice != null ? Number(d.AgreedPrice) : null,
+          },
+        ])
+      );
+    } catch {
+      draftsByRequestId = {};
+    }
+  }
 
   const iTeachPeer = findTeachingPair(peerReq, myOff);
   const peerTeachesMe = findTeachingPair(myReq, peerOff);
@@ -492,15 +701,27 @@ async function getForm2Eligibility(conversationId, studentId) {
   return {
     conversationId: Number(conversationId),
     peerStudentId: peerId,
+    bundles,
+    selectedBundleKey: effectiveKey,
+    draftsByRequestId,
     iTeachPeer,
     peerTeachesMe,
     mutualSwapReady: bothDirections && reciprocalOk,
     exchangeReadiness: {
       iAmReady,
       peerReady,
-      bothReady: iAmReady && peerReady,
+      bothReady: Boolean(iAmReady && peerReady),
     },
   };
+}
+
+/**
+ * Resolve a bundle definition for confirm-form2 validation (same rules as eligibility).
+ */
+async function getBundleDefinitionForConfirm(conversationId, studentId, bundleKey) {
+  const data = await getForm2Eligibility(conversationId, studentId, { bundleKey });
+  const b = data.bundles.find((x) => x.bundleKey === bundleKey);
+  return b ?? null;
 }
 
 module.exports = {
@@ -512,6 +733,10 @@ module.exports = {
   listMutualMatchesForRequest,
   saveMatchForm1,
   getForm2Eligibility,
+  getBundleDefinitionForConfirm,
+  buildForm2Bundles,
+  pairsMatchBundleLegs,
+  findAllTeachingPairs,
   PREFERRED_TIMES,
   PREFERRED_MODES,
 };

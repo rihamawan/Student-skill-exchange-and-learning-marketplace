@@ -82,4 +82,14 @@ router.get(
   matchingController.getForm2Eligibility
 );
 
+router.put(
+  '/conversations/:conversationId/form2-draft',
+  requireAuth,
+  requireRoles('student'),
+  requireStudentVerified,
+  param('conversationId').isInt({ min: 1 }).withMessage('Invalid conversation id'),
+  handleValidation,
+  matchingController.putForm2Draft
+);
+
 module.exports = router;

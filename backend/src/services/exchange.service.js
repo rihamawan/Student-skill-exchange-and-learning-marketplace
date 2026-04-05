@@ -266,28 +266,22 @@ async function getByUniversity(universityId) {
 }
 
 /**
- * Form 2: one or more Exchange + Session rows (+ VideoSession if online, PaidExchange + Payment if paid).
+ * Form 2: Exchange + Session rows per leg; each pair may have its own session time/venue (per requester).
  * @param {object} params
  * @param {number} params.conversationId
- * @param {'physical'|'online'} params.meetingType
- * @param {string} params.venue
- * @param {string} params.scheduledStart
- * @param {string} params.scheduledEnd
- * @param {{ offerId: number, requestId: number, agreedPrice?: number }[]} params.pairs
- * @param {{ platform: string, meetingLink?: string, meetingPassword?: string }} [params.videoSession]
+ * @param {string} params.bundleKey — must match a bundle from form2-eligibility
+ * @param {number} params.studentId — confirming student (participant)
+ * @param {{ offerId: number, requestId: number, agreedPrice?: number, scheduledStart: string, scheduledEnd: string, venue: string, meetingType?: string, videoSession?: object }[]} params.pairs
  * @param {string} [params.paymentMethod]
  */
 async function confirmForm2ExchangeSessions(params) {
-  const {
-    conversationId,
-    meetingType,
-    venue,
-    scheduledStart,
-    scheduledEnd,
-    pairs,
-    videoSession,
-    paymentMethod = 'Cash',
-  } = params;
+  const { conversationId, bundleKey, studentId, pairs, paymentMethod = 'Cash' } = params;
+
+  if (bundleKey == null || String(bundleKey).trim() === '') {
+    const err = new Error('bundleKey is required (select an exchange bundle on Form 2).');
+    err.code = 'BUNDLE_KEY_REQUIRED';
+    throw err;
+  }
 
   if (!Array.isArray(pairs) || pairs.length === 0) {
     const err = new Error('At least one offer/request pair is required.');
@@ -295,16 +289,39 @@ async function confirmForm2ExchangeSessions(params) {
     throw err;
   }
 
-  if (meetingType === 'online') {
-    const platform = videoSession?.platform?.trim();
-    if (!platform) {
-      const err = new Error('Online meetings require videoSession.platform.');
+  const bundleDef = await matchingService.getBundleDefinitionForConfirm(
+    conversationId,
+    studentId,
+    String(bundleKey).trim()
+  );
+  if (!bundleDef) {
+    const err = new Error('Invalid or expired exchange bundle for this conversation.');
+    err.code = 'INVALID_BUNDLE';
+    throw err;
+  }
+  if (!matchingService.pairsMatchBundleLegs(bundleDef, pairs)) {
+    const err = new Error('Pairs do not match the selected bundle.');
+    err.code = 'INVALID_PAIRS';
+    throw err;
+  }
+
+  for (const pair of pairs) {
+    if (!pair.scheduledStart || !pair.scheduledEnd || !(pair.venue ?? '').toString().trim()) {
+      const err = new Error('Each exchange requires venue, scheduled start, and scheduled end.');
+      err.code = 'SESSION_FIELDS_REQUIRED';
+      throw err;
+    }
+    const mt = String(pair.meetingType || 'physical').toLowerCase() === 'online' ? 'online' : 'physical';
+    if (mt === 'online' && !pair.videoSession?.platform?.trim()) {
+      const err = new Error('Online meetings require videoSession.platform for each online session.');
       err.code = 'VIDEO_REQUIRED';
       throw err;
     }
   }
 
   return withTransaction(async (conn) => {
+    await conversationService.assertBundleBothReadyConn(conn, conversationId, String(bundleKey).trim());
+
     const [convRows] = await conn.query(
       'SELECT Student1ID, Student2ID FROM Conversation WHERE ConversationID = ?',
       [conversationId]
@@ -322,7 +339,16 @@ async function confirmForm2ExchangeSessions(params) {
     const sessionIds = [];
 
     for (const pair of pairs) {
-      const { offerId, requestId, agreedPrice } = pair;
+      const {
+        offerId,
+        requestId,
+        agreedPrice,
+        scheduledStart,
+        scheduledEnd,
+        venue,
+        meetingType: pairMeetingType,
+        videoSession: pairVideo,
+      } = pair;
       const [offRows] = await conn.query(
         'SELECT OfferID, StudentID, SkillID, IsPaid FROM OfferedSkill WHERE OfferID = ?',
         [offerId]
@@ -390,23 +416,25 @@ async function confirmForm2ExchangeSessions(params) {
       const exchangeId = exResult.insertId;
       exchangeIds.push(exchangeId);
 
+      const venueStr = String(venue ?? '').trim();
       const [sessResult] = await conn.query(
         `INSERT INTO Session (ExchangeID, ScheduledStartTime, ScheduledEndTime, Venue, Status)
          VALUES (?, ?, ?, ?, 'scheduled')`,
-        [exchangeId, scheduledStart, scheduledEnd, venue]
+        [exchangeId, scheduledStart, scheduledEnd, venueStr]
       );
       const sessionId = sessResult.insertId;
       sessionIds.push(sessionId);
 
-      if (meetingType === 'online') {
+      const mt = String(pairMeetingType || 'physical').toLowerCase() === 'online' ? 'online' : 'physical';
+      if (mt === 'online') {
         await conn.query(
           `INSERT INTO VideoSession (SessionID, MeetingLink, MeetingPassword, Platform)
            VALUES (?, ?, ?, ?)`,
           [
             sessionId,
-            videoSession?.meetingLink?.trim() || null,
-            videoSession?.meetingPassword?.trim() || null,
-            videoSession.platform.trim(),
+            pairVideo?.meetingLink?.trim() || null,
+            pairVideo?.meetingPassword?.trim() || null,
+            pairVideo.platform.trim(),
           ]
         );
       }

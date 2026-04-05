@@ -163,14 +163,27 @@ async function patchExchangeReadiness(req, res) {
       return res.status(403).json({ success: false, error: 'Not a participant' });
     }
     const ready = Boolean(req.body.ready);
-    const updated = await conversationService.setExchangeReadiness(conversationId, studentId, ready);
-    if (!updated) {
-      return res.status(404).json({ success: false, error: 'Conversation not found' });
+    const bundleKey = req.body.bundleKey != null ? String(req.body.bundleKey).trim() : '';
+
+    let updated;
+    if (bundleKey) {
+      const row = await conversationService.upsertBundleReadiness(conversationId, bundleKey, studentId, ready);
+      updated = await conversationService.getById(conversationId);
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Conversation not found' });
+      }
+    } else {
+      updated = await conversationService.setExchangeReadiness(conversationId, studentId, ready);
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Conversation not found' });
+      }
     }
+
     const io = req.app.get('io');
     if (io) {
       io.to(roomForConversation(conversationId)).emit('exchange_readiness', {
         conversationId,
+        bundleKey: bundleKey || null,
         student1ExchangeReady: Boolean(Number(updated.Student1ExchangeReady)),
         student2ExchangeReady: Boolean(Number(updated.Student2ExchangeReady)),
       });

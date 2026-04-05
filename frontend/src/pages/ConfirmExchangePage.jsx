@@ -3,6 +3,17 @@ import { useConfirmExchangeForm } from '../hooks/useConfirmExchangeForm';
 
 const PLATFORMS = ['Zoom', 'Google Meet', 'Teams', 'Other'];
 
+function bundleLabel(b) {
+  if (b.kind === 'mutual_exchange' && b.legs?.length === 2) {
+    const a = b.legs[0].skillName ?? 'Skill A';
+    const c = b.legs[1].skillName ?? 'Skill B';
+    return `Free swap: ${a} ↔ ${c}`;
+  }
+  const leg = b.legs?.[0];
+  if (!leg) return b.bundleKey;
+  return `${leg.isPaid ? 'Paid' : 'Free'}: ${leg.skillName ?? 'Skill'} (${leg.roleLabel ?? 'session'})`;
+}
+
 export function ConfirmExchangePage() {
   const { conversationId } = useParams();
   const f = useConfirmExchangeForm(conversationId);
@@ -30,204 +41,191 @@ export function ConfirmExchangePage() {
     );
   }
 
-  const teach = f.eligibility?.iTeachPeer;
-  const learn = f.eligibility?.peerTeachesMe;
-  const dual = Boolean(f.eligibility?.mutualSwapReady && teach && learn);
+  const bundles = f.eligibility?.bundles ?? [];
   const er = f.eligibility?.exchangeReadiness;
 
   return (
     <div className="confirm-exchange-page">
       <h1>Confirm exchange (Form 2)</h1>
       <p className="muted">
-        Turn on readiness when you agree in chat. When both are on, you can submit. A full swap creates two exchanges.
+        Choose which skill exchange this confirmation is for. Turn on readiness for <strong>this bundle</strong> when
+        you agree in chat. Each learner fills venue and time for <strong>their own</strong> request (two forms for a free
+        two-way swap; one form for a single paid or single-direction session).
       </p>
 
-      <section className="exchange-readiness-panel card-like">
-        <h2 className="readiness-heading">Ready to confirm (both required)</h2>
-        <p className="muted">
-          You: {er?.iAmReady ? 'On' : 'Off'} · Peer: {er?.peerReady ? 'On' : 'Off'}
-          {er?.bothReady ? ' — both ready.' : ''}
-        </p>
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={f.readinessSaving}
-          onClick={() => f.patchMyReadiness(!er?.iAmReady)}
-        >
-          {f.readinessSaving ? 'Saving…' : er?.iAmReady ? 'Turn my readiness off' : 'I am ready to confirm'}
-        </button>
-        {f.readinessError ? (
-          <p className="form-error" role="alert">
-            {f.readinessError}
-          </p>
-        ) : null}
-      </section>
-
-      {!teach && !learn ? (
-        <p className="form-error">No open matching pair for this conversation. Check match profile and requests.</p>
+      {bundles.length === 0 ? (
+        <p className="form-error">No eligible exchange bundles for this conversation. Check open requests and offers.</p>
       ) : (
-        <ul className="muted">
-          {teach ? (
-            <li>
-              You teach (offer #{teach.offerId} → their request #{teach.requestId})
-              {teach.isPaid ? ' — paid' : ' — free exchange'}
-            </li>
-          ) : null}
-          {learn ? (
-            <li>
-              You learn (their offer #{learn.offerId} → your request #{learn.requestId})
-              {learn.isPaid ? ' — paid' : ' — free exchange'}
-            </li>
-          ) : null}
-        </ul>
+        <>
+          <div className="field">
+            <label htmlFor="bundle-select">Exchange bundle</label>
+            <select
+              id="bundle-select"
+              value={f.selectedBundleKey}
+              onChange={(e) => f.setSelectedBundleKey(e.target.value)}
+            >
+              {bundles.map((b) => (
+                <option key={b.bundleKey} value={b.bundleKey}>
+                  {bundleLabel(b)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <section className="exchange-readiness-panel card-like">
+            <h2 className="readiness-heading">Ready for this bundle (both required)</h2>
+            <p className="muted">
+              You: {er?.iAmReady ? 'On' : 'Off'} · Peer: {er?.peerReady ? 'On' : 'Off'}
+              {er?.bothReady ? ' — both ready.' : ''}
+            </p>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={f.readinessSaving || !f.selectedBundleKey}
+              onClick={() => f.patchMyReadiness(!er?.iAmReady)}
+            >
+              {f.readinessSaving ? 'Saving…' : er?.iAmReady ? 'Turn my readiness off' : 'I am ready to confirm'}
+            </button>
+            {f.readinessError ? (
+              <p className="form-error" role="alert">
+                {f.readinessError}
+              </p>
+            ) : null}
+          </section>
+
+          {f.selectedBundle?.legs?.map((leg) => {
+            const mine = f.myStudentId != null && Number(leg.learnerStudentId) === Number(f.myStudentId);
+            const s = f.legSessions[leg.requestId] ?? {};
+            const rid = leg.requestId;
+            return (
+              <section key={`${leg.offerId}-${rid}`} className="crud-form-card stack" style={{ marginTop: '1rem' }}>
+                <h2>
+                  {leg.skillName ?? 'Skill'} — {leg.roleLabel}
+                  {leg.isPaid ? ' (paid)' : ' (free exchange)'}
+                </h2>
+                {!mine ? (
+                  <p className="muted">
+                    The student who requested this skill enters venue and time. They can save a draft; refresh this page
+                    after they do so everyone can submit together.
+                  </p>
+                ) : (
+                  <>
+                    <div className="field">
+                      <span>Meeting type</span>
+                      <label className="inline">
+                        <input
+                          type="radio"
+                          checked={(s.meetingType ?? 'physical') === 'physical'}
+                          onChange={() => f.updateLegSession(rid, { meetingType: 'physical' })}
+                        />
+                        Physical
+                      </label>
+                      <label className="inline">
+                        <input
+                          type="radio"
+                          checked={(s.meetingType ?? 'physical') === 'online'}
+                          onChange={() => f.updateLegSession(rid, { meetingType: 'online' })}
+                        />
+                        Online
+                      </label>
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`venue-${rid}`}>Venue</label>
+                      <input
+                        id={`venue-${rid}`}
+                        value={s.venue ?? ''}
+                        onChange={(e) => f.updateLegSession(rid, { venue: e.target.value })}
+                        placeholder="Address or Online"
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`date-${rid}`}>Date</label>
+                      <input
+                        id={`date-${rid}`}
+                        type="date"
+                        value={s.dateStr ?? ''}
+                        onChange={(e) => f.updateLegSession(rid, { dateStr: e.target.value })}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`start-${rid}`}>Start time</label>
+                      <input
+                        id={`start-${rid}`}
+                        type="time"
+                        value={s.startTime ?? ''}
+                        onChange={(e) => f.updateLegSession(rid, { startTime: e.target.value })}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`end-${rid}`}>End time</label>
+                      <input
+                        id={`end-${rid}`}
+                        type="time"
+                        value={s.endTime ?? ''}
+                        onChange={(e) => f.updateLegSession(rid, { endTime: e.target.value })}
+                      />
+                    </div>
+                    {(s.meetingType ?? 'physical') === 'online' ? (
+                      <>
+                        <div className="field">
+                          <label htmlFor={`plat-${rid}`}>Platform</label>
+                          <select
+                            id={`plat-${rid}`}
+                            value={s.platform ?? 'Zoom'}
+                            onChange={(e) => f.updateLegSession(rid, { platform: e.target.value })}
+                          >
+                            {PLATFORMS.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="field">
+                          <label htmlFor={`link-${rid}`}>Meeting link (optional)</label>
+                          <input
+                            id={`link-${rid}`}
+                            type="url"
+                            value={s.meetingLink ?? ''}
+                            onChange={(e) => f.updateLegSession(rid, { meetingLink: e.target.value })}
+                          />
+                        </div>
+                        <div className="field">
+                          <label htmlFor={`pass-${rid}`}>Meeting password (optional)</label>
+                          <input
+                            id={`pass-${rid}`}
+                            value={s.meetingPassword ?? ''}
+                            onChange={(e) => f.updateLegSession(rid, { meetingPassword: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    ) : null}
+                    {leg.isPaid ? (
+                      <div className="field">
+                        <label htmlFor={`price-${rid}`}>Agreed price (PKR)</label>
+                        <input
+                          id={`price-${rid}`}
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={s.price ?? ''}
+                          onChange={(e) => f.updateLegSession(rid, { price: e.target.value })}
+                        />
+                      </div>
+                    ) : null}
+                    <p>
+                      <button type="button" className="btn-secondary" disabled={f.draftSaving} onClick={() => f.saveDraftForRequest(rid)}>
+                        {f.draftSaving ? 'Saving…' : 'Save draft for this session'}
+                      </button>
+                      {f.draftMessage ? <span className="muted small"> {f.draftMessage}</span> : null}
+                    </p>
+                  </>
+                )}
+              </section>
+            );
+          })}
+        </>
       )}
-
-      <section className="stack">
-        <div className="field">
-          <span>Meeting type</span>
-          <label className="inline">
-            <input
-              type="radio"
-              checked={f.meetingType === 'physical'}
-              onChange={() => f.setMeetingType('physical')}
-            />
-            Physical
-          </label>
-          <label className="inline">
-            <input
-              type="radio"
-              checked={f.meetingType === 'online'}
-              onChange={() => f.setMeetingType('online')}
-            />
-            Online
-          </label>
-        </div>
-
-        <div className="field">
-          <label htmlFor="cf-venue">Venue</label>
-          <input
-            id="cf-venue"
-            value={f.venue}
-            onChange={(e) => f.setVenue(e.target.value)}
-            placeholder="Address or Online"
-          />
-        </div>
-
-        <div className="field">
-          <label htmlFor="cf-date">Date</label>
-          <input
-            id="cf-date"
-            type="date"
-            value={f.dateStr}
-            onChange={(e) => f.setDateStr(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="cf-start">Start time</label>
-          <input
-            id="cf-start"
-            type="time"
-            value={f.startTime}
-            onChange={(e) => f.setStartTime(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="cf-end">End time</label>
-          <input
-            id="cf-end"
-            type="time"
-            value={f.endTime}
-            onChange={(e) => f.setEndTime(e.target.value)}
-          />
-        </div>
-
-        {f.meetingType === 'online' ? (
-          <>
-            <div className="field">
-              <label htmlFor="cf-platform">Platform</label>
-              <select id="cf-platform" value={f.platform} onChange={(e) => f.setPlatform(e.target.value)}>
-                {PLATFORMS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="cf-link">Meeting link (optional)</label>
-              <input
-                id="cf-link"
-                type="url"
-                value={f.meetingLink}
-                onChange={(e) => f.setMeetingLink(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="cf-pass">Meeting password (optional)</label>
-              <input
-                id="cf-pass"
-                value={f.meetingPassword}
-                onChange={(e) => f.setMeetingPassword(e.target.value)}
-              />
-            </div>
-          </>
-        ) : null}
-
-        {dual && teach?.isPaid ? (
-          <div className="field">
-            <label htmlFor="cf-price-teach">Agreed price when you teach (PKR)</label>
-            <input
-              id="cf-price-teach"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={f.priceTeach}
-              onChange={(e) => f.setPriceTeach(e.target.value)}
-            />
-          </div>
-        ) : null}
-        {!dual && teach?.isPaid ? (
-          <div className="field">
-            <label htmlFor="cf-price-single">Agreed price (PKR)</label>
-            <input
-              id="cf-price-single"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={f.priceTeach}
-              onChange={(e) => f.setPriceTeach(e.target.value)}
-            />
-          </div>
-        ) : null}
-
-        {dual && learn?.isPaid ? (
-          <div className="field">
-            <label htmlFor="cf-price-learn">Agreed price when they teach you (PKR)</label>
-            <input
-              id="cf-price-learn"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={f.priceLearn}
-              onChange={(e) => f.setPriceLearn(e.target.value)}
-            />
-          </div>
-        ) : null}
-        {!dual && learn?.isPaid ? (
-          <div className="field">
-            <label htmlFor="cf-price-learn-only">Agreed price (PKR)</label>
-            <input
-              id="cf-price-learn-only"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={f.priceLearn}
-              onChange={(e) => f.setPriceLearn(e.target.value)}
-            />
-          </div>
-        ) : null}
-
-      </section>
 
       {f.submitError ? (
         <p className="form-error" role="alert">
@@ -235,14 +233,24 @@ export function ConfirmExchangePage() {
         </p>
       ) : null}
 
-      <p>
+      <p style={{ marginTop: '1rem' }}>
         <button
           type="button"
           className="btn-primary"
-          disabled={f.submitting || (!teach && !learn) || !er?.bothReady}
+          disabled={
+            f.submitting ||
+            bundles.length === 0 ||
+            !f.selectedBundleKey ||
+            !er?.bothReady ||
+            !f.selectedBundle
+          }
           onClick={f.submit}
         >
-          {f.submitting ? 'Submitting…' : dual ? 'Create two exchanges & sessions' : 'Create exchange & session'}
+          {f.submitting
+            ? 'Submitting…'
+            : f.selectedBundle?.kind === 'mutual_exchange'
+              ? 'Create two exchanges & sessions'
+              : 'Create exchange & session'}
         </button>
       </p>
       <p className="muted">
