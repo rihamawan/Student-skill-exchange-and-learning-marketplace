@@ -97,9 +97,54 @@ Screenshots live in `media/` as: `ui-RequestedSkills.png`, `ui-OfferedSkills.png
 - **MySQL** 8 (or 5.7) with a user that can create databases and tables
 - **Git** (to clone the repository)
 
-### Repository layout *(deviations from a flat “routes at backend root” template)*
+### Repository layout
+**This repository’s structure:**
 
-This repo matches a typical monorepo layout. The coursework template sometimes shows `backend/routes` at the top level; here code lives under **`backend/src/`** (`routes/v1`, `controllers`, `services`, `middleware`). There is **no separate `models/` folder** — data access is implemented in **services** with SQL. **`server.js`** is at `backend/src/server.js`.
+```
+25_Student-skill-exchange-and-learning-marketplace/
+├── README.md
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   ├── package.json
+│   └── .env.example
+├── backend/
+│   ├── package.json
+│   ├── .env.example
+│   └── src/
+│       ├── server.js          # HTTP + Socket.io entry
+│       ├── app.js             # Express app
+│       ├── socket.js          # Real-time chat
+│       ├── openapi.json       # OpenAPI 3 spec (Swagger UI uses this)
+│       ├── routes/v1/         # REST routes under /api/v1
+│       ├── controllers/
+│       ├── middleware/
+│       └── services/          # Business logic + SQL (no ORM models/)
+├── database/
+│   ├── schema.sql
+│   ├── seed.sql
+│   ├── performance.sql
+│   └── acid_transactions.sql
+├── docs/
+│   ├── ERD_SkillExchange.drawio
+│   └── Demo_ERD.drawio
+└── media/
+    ├── ui-RequestedSkills.png
+    ├── ui-OfferedSkills.png
+    ├── ui-conversations.png
+    └── rollback-log.txt
+```
+
+**Deviations from a minimal “`backend/routes` at backend root” template:**
+
+- **`backend/src/`** — All server code lives under `src/`, not directly under `backend/`.
+- **`routes/v1/`** — API is versioned; mounts at `/api/v1` (not a single flat `routes/` folder at backend root).
+- **No `models/`** — Persistence is **SQL via `services/`** and `services/db.js`, not a separate ORM model layer.
+- **`services/`** — Replaces the role of `models/` for queries and transactions.
+- **Extra entry files** — `app.js` (Express setup) and `socket.js` (Socket.io) alongside `server.js`.
+- **OpenAPI** — Spec is `backend/src/openapi.json` (not only `docs/swagger.yaml`); Swagger UI is served by the API (`/api-docs`).
+- **`database/`** — Includes `acid_transactions.sql` in addition to `schema.sql`, `seed.sql`, and `performance.sql`.
+- **`docs/`** — Diagrams are **`.drawio`** sources
 
 ### Install dependencies
 
@@ -141,7 +186,7 @@ From MySQL (CLI or Workbench), in order:
 1. Run `database/schema.sql` — creates database, tables, constraints, triggers, views, and baseline indexes.
 2. Run `database/seed.sql` — sample universities, users, students, admins, skills, etc.
 
-Optional for coursework analysis:
+Optional for analysis:
 
 3. Run `database/performance.sql` — EXPLAIN / EXPLAIN ANALYZE and optional extra indexes (see **§10**; avoid running index-creation twice on the same DB without checking duplicates).
 4. Run `database/acid_transactions.sql` if you use the bundled stored-procedure examples.
@@ -270,7 +315,7 @@ All of these use `withTransaction()` in `backend/src/services/transactions.js`: 
 - `idx_payment_exch_status`, `idx_message_created`
 - Skill quiz / portfolio: `idx_question_skill`, `idx_eval_student_skill`, `idx_portfolio_student`, etc.
 
-**Additional indexes** for coursework analysis appear in **`database/performance.sql` §3**, e.g.:
+**Additional indexes** for appear in **`database/performance.sql` §3**, e.g.:
 
 - `idx_offer_student_skill`, `idx_offer_skill` — faster offer discovery by student/skill
 - `idx_request_skill_status` — filter open requests by skill
